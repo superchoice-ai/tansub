@@ -2,7 +2,7 @@
 
 - **Repository:** `superchoice-ai/tansub`
 - **Environment:** Lovable/Supabase demo; not production
-- **Plan status:** IMPLEMENTATION IN PROGRESS ON FEATURE BRANCH — NOT MERGED / NOT DEPLOYED
+- **Plan status:** PAUSED FAIL-CLOSED AFTER CS-1 — DATABASE VERIFICATION BLOCKED / NOT MERGED / NOT DEPLOYED
 - **Active workflow:** `contract_cancel`
 - **Later workflow:** `payment_void` requires a separate F1 plan
 - **Excluded:** `restructure` remains unsupported and fail-closed
@@ -301,8 +301,9 @@ Implemented in repository code, but not yet migrated, merged, deployed, or datab
 
 Remaining gates:
 
-- execute CS-0 against the actual demo database and review anomalies;
-- apply migrations to an isolated demo environment;
+- CS-0 executed; two payment-without-cash anomalies recorded and classified;
+- CS-1 submitted successfully, but post-migration verification is blocked by Lovable Database Query HTTP 504;
+- restore query access and prove CS-1 state before applying CS-2;
 - run Phase A and contract-cancel regression suites;
 - verify Lovable build and Supabase `.from()`/`.rpc()`/RLS/Proxy behavior;
 - review diff and evidence before any merge to `main` or deployment.

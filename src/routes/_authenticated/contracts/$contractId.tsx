@@ -41,7 +41,7 @@ function ContractDetail() {
   const { data, isLoading } = useQuery({
     queryKey: ["contract", contractId],
     queryFn: async () => {
-      const [c, ins, pay, pendingCancel] = await Promise.all([
+      const [c, ins, pay, pendingCancel, cancellationAudit] = await Promise.all([
         supabase
           .from("contracts")
           .select("*, customers:customer_id(id,code,full_name,national_id,phone,address,district,province,postcode,birth_date), vehicles:vehicle_id(plate_no,plate_province,brand,model,vehicle_type,chassis_no), branches:branch_id(name,address)")
@@ -50,12 +50,14 @@ function ContractDetail() {
         supabase.from("installments").select("*").eq("contract_id", contractId).order("seq"),
         supabase.from("payments").select("*").eq("contract_id", contractId).order("paid_at", { ascending: false }),
         supabase.from("approval_requests").select("id, status, reason, created_at").eq("type", "contract_cancel").eq("entity_table", "contracts").eq("entity_id", contractId).eq("status", "pending").maybeSingle(),
+        supabase.from("audit_logs").select("detail, created_at").eq("action", "contract_cancel_snapshot").eq("entity_table", "contracts").eq("entity_id", contractId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (c.error) throw c.error;
       if (ins.error) throw ins.error;
       if (pay.error) throw pay.error;
       if (pendingCancel.error) throw pendingCancel.error;
-      return { contract: c.data, installments: ins.data ?? [], payments: pay.data ?? [], pendingCancel: pendingCancel.data };
+      if (cancellationAudit.error) throw cancellationAudit.error;
+      return { contract: c.data, installments: ins.data ?? [], payments: pay.data ?? [], pendingCancel: pendingCancel.data, cancellationAudit: cancellationAudit.data };
     },
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
@@ -104,6 +106,8 @@ function ContractDetail() {
   });
 
   const hasPaymentEvidence = c.first_payment_at != null || data.payments.length >= 1;
+  const auditedInstallments = ((data.cancellationAudit?.detail as Record<string, unknown> | null)?.installments_before ?? []) as typeof data.installments;
+  const displayInstallments = data.installments.length > 0 ? data.installments : auditedInstallments;
   const canRequestCancel = ["active", "overdue"].includes(c.status) && !hasPaymentEvidence && !data.pendingCancel;
 
   return (
@@ -123,7 +127,7 @@ function ContractDetail() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-base">ตารางผ่อนชำระ ({c.term_months} งวด · ดอกเบี้ย {Number(c.interest_rate)}%/เดือน)</CardTitle></CardHeader><CardContent className="p-0">{c.status === "cancelled" && data.installments.length === 0 ? <p className="p-6 text-sm text-muted-foreground">สัญญาถูกยกเลิกแล้ว ตารางงวดเดิมถูกเก็บเป็นหลักฐานใน Audit Log</p> : <div className="max-h-[520px] overflow-auto"><Table><TableHeader><TableRow><TableHead>งวด</TableHead><TableHead>ครบกำหนด</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">รวม</TableHead><TableHead className="text-right">ชำระแล้ว</TableHead><TableHead>สถานะ</TableHead></TableRow></TableHeader><TableBody>{data.installments.map((i) => { const overdue = i.status !== "paid" && i.due_date < today; return <TableRow key={i.id}><TableCell className="tabular">{i.seq}</TableCell><TableCell className="tabular">{formatThaiDate(i.due_date)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.principal_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.interest_amount)}</TableCell><TableCell className="tabular text-right font-medium">{formatMoney(i.total_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.paid_amount)}</TableCell><TableCell><StatusPill status={overdue ? "overdue" : i.status} label={overdue ? "เกินกำหนด" : (INSTALLMENT_STATUS_LABEL[i.status] ?? i.status)} /></TableCell></TableRow>; })}</TableBody></Table></div>}</CardContent></Card>
+        <Card className="lg:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-base">ตารางผ่อนชำระ ({c.term_months} งวด · ดอกเบี้ย {Number(c.interest_rate)}%/เดือน)</CardTitle></CardHeader><CardContent className="p-0">{c.status === "cancelled" && displayInstallments.length === 0 ? <p className="p-6 text-sm text-destructive">ไม่พบ Snapshot ตารางงวดใน Audit Log กรุณาตรวจสอบข้อมูล</p> : <div className="max-h-[520px] overflow-auto"><Table><TableHeader><TableRow><TableHead>งวด</TableHead><TableHead>ครบกำหนด</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">รวม</TableHead><TableHead className="text-right">ชำระแล้ว</TableHead><TableHead>สถานะ</TableHead></TableRow></TableHeader><TableBody>{displayInstallments.map((i) => { const overdue = i.status !== "paid" && i.due_date < today; return <TableRow key={i.id}><TableCell className="tabular">{i.seq}</TableCell><TableCell className="tabular">{formatThaiDate(i.due_date)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.principal_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.interest_amount)}</TableCell><TableCell className="tabular text-right font-medium">{formatMoney(i.total_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.paid_amount)}</TableCell><TableCell><StatusPill status={overdue ? "overdue" : i.status} label={overdue ? "เกินกำหนด" : (INSTALLMENT_STATUS_LABEL[i.status] ?? i.status)} /></TableCell></TableRow>; })}</TableBody></Table></div>}</CardContent></Card>
 
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">ประวัติการรับชำระ</CardTitle></CardHeader><CardContent className="p-0">{data.payments.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">ยังไม่มีการชำระเงิน</p> : <Table><TableHeader><TableRow><TableHead>เลขที่ใบเสร็จ</TableHead><TableHead>วันที่</TableHead><TableHead className="text-right">จำนวน</TableHead></TableRow></TableHeader><TableBody>{data.payments.map((p) => <TableRow key={p.id} className={p.voided ? "opacity-50 line-through" : ""}><TableCell className="tabular text-xs">{p.receipt_no}<span className="block text-muted-foreground">{PAYMENT_METHOD_LABEL[p.method] ?? p.method}</span></TableCell><TableCell className="tabular">{formatThaiDate(p.paid_at)}</TableCell><TableCell className="tabular text-right">฿{formatMoney(p.amount)}</TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
       </div>

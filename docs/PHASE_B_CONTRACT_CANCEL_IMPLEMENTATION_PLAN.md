@@ -2,7 +2,7 @@
 
 - **Repository:** `superchoice-ai/tansub`
 - **Environment:** Lovable/Supabase demo; not production
-- **Plan status:** READY FOR REVIEW — NOT AUTHORIZED FOR IMPLEMENTATION
+- **Plan status:** IMPLEMENTATION IN PROGRESS ON FEATURE BRANCH — NOT MERGED / NOT DEPLOYED
 - **Active workflow:** `contract_cancel`
 - **Later workflow:** `payment_void` requires a separate F1 plan
 - **Excluded:** `restructure` remains unsupported and fail-closed
@@ -274,32 +274,38 @@ No step passes from UI-only evidence. Database reconciliation is mandatory.
 - remaining unverified areas;
 - explicit approval for the next change set.
 
-## 7. Unresolved interpretation gates before coding
+## 7. Resolved implementation interpretation gates
 
-These details were not included in the five confirmed decisions and must not be inferred:
+The decision owner confirmed all four gates on 2026-08-14:
 
-### Gate U1 — Cancellable lifecycle
+- **U1 — Cancellable lifecycle:** both `active` and `overdue` are eligible when no payment event has ever existed.
+- **U2 — Payment marker:** eligibility changes when payment count reaches at least one. The implementation records the database time of the first inserted payment event in `first_payment_at`; staff-entered/backdated `paid_at` does not control the permanent lock.
+- **U3 — Schedule snapshot:** store the complete pre-cancellation installment snapshot in `audit_logs.detail`.
+- **U4 — Application cancellation:** an application may be cancelled only until a contract row/contract number has been created. Once a contract exists—including a closed contract—the application is no longer cancellable through the application-cancel path.
 
-Confirm whether a no-payment `overdue` contract is eligible for cancellation, or only `active` is eligible. `closed` and `cancelled` are confirmed ineligible.
+## 7.1 Feature-branch implementation progress
 
-### Gate U2 — Timestamp meaning
+Branch: `phase-b-contract-cancel`
 
-Confirm whether `first_payment_at` stores:
+Implemented in repository code, but not yet migrated, merged, deployed, or database-tested:
 
-- the database time when the first payment event was recorded; or
-- the business `paid_at` date entered by staff, which may be backdated.
+- CS-0 baseline reconciliation SQL;
+- CS-1 immutable `first_payment_at`, payment insert lock, and hard-delete prevention;
+- CS-2 Phase A payment-lock and application-cancel alignment;
+- CS-3 duplicate cancellation, lifecycle, payment, and collection guards;
+- CS-4 dedicated atomic contract-cancel executor and exact Approval Engine dispatch;
+- contract-detail cancellation request UI;
+- application UI alignment;
+- cancelled lifecycle filters in collections, dashboard, and reports;
+- generated Supabase type for `first_payment_at`.
 
-**Recommended:** database-recorded event time because it is immutable evidence. Keep `paid_at` separately as the business date.
+Remaining gates:
 
-### Gate U3 — Cancellation audit snapshot storage
-
-Confirm whether the full installment snapshot is stored in existing `audit_logs` JSON or a dedicated cancellation-history table.
-
-**Recommended initial scope:** existing append-only audit JSON if size and access tests pass; use a dedicated table only if evidence proves the audit row is unsuitable.
-
-### Gate U4 — Application cancel without contract
-
-The closed-contract conflict is confirmed, but the existing behavior for a loan application that never created a contract should be preserved only after confirming its intended eligibility states.
+- execute CS-0 against the actual demo database and review anomalies;
+- apply migrations to an isolated demo environment;
+- run Phase A and contract-cancel regression suites;
+- verify Lovable build and Supabase `.from()`/`.rpc()`/RLS/Proxy behavior;
+- review diff and evidence before any merge to `main` or deployment.
 
 ## 8. Explicitly not authorized
 
@@ -319,4 +325,4 @@ This plan does not authorize:
 
 The next permissible action is to resolve Gates U1–U4 and approve the exact first implementation slice.
 
-Recommended first implementation authorization, after those answers, is **CS-0 read-only baseline evidence only**. Completion of CS-0 does not authorize CS-1.
+Implementation has started only on the isolated feature branch. The next operational action is CS-0 execution against the demo database. No merge to `main`, migration execution, Lovable deployment, or production cutover is authorized by this document.

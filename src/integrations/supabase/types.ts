@@ -397,6 +397,7 @@ export type Database = {
           end_date: string | null
           fee_amount: number
           first_due_date: string | null
+          first_payment_at: string | null
           id: string
           installment_amount: number
           interest_rate: number
@@ -420,6 +421,7 @@ export type Database = {
           end_date?: string | null
           fee_amount?: number
           first_due_date?: string | null
+          first_payment_at?: string | null
           id?: string
           installment_amount?: number
           interest_rate?: number
@@ -443,6 +445,7 @@ export type Database = {
           end_date?: string | null
           fee_amount?: number
           first_due_date?: string | null
+          first_payment_at?: string | null
           id?: string
           installment_amount?: number
           interest_rate?: number

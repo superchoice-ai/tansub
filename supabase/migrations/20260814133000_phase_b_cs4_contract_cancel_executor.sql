@@ -115,7 +115,8 @@ BEGIN
   UPDATE public.loan_applications
   SET status = 'cancelled',
       updated_at = now()
-  WHERE id = target.application_id;
+  WHERE id = target.application_id
+    AND status = 'contracted';
 
   GET DIAGNOSTICS affected_rows = ROW_COUNT;
   IF affected_rows <> 1 THEN

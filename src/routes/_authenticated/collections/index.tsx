@@ -44,7 +44,7 @@ function CollectionsPage() {
     queryFn: async () => {
       const bf = <T extends { eq: (c: string, v: string) => T }>(q: T): T => branchId ? q.eq("branch_id", branchId) : q;
       const [overdue, acts] = await Promise.all([
-        bf(supabase.from("installments").select("*, contracts:contract_id(id, code, customers:customer_id(full_name, phone, national_id, line_id), vehicles:vehicle_id(plate_no))").lt("due_date", today).neq("status", "paid").order("due_date")),
+        bf(supabase.from("installments").select("*, contracts:contract_id!inner(id, code, status, customers:customer_id(full_name, phone, national_id, line_id), vehicles:vehicle_id(plate_no))").in("contracts.status", ["active", "overdue"]).lt("due_date", today).neq("status", "paid").order("due_date")),
         bf(supabase.from("collection_activities").select("*, contracts:contract_id(code, customers:customer_id(full_name, phone, national_id, line_id))").order("acted_at", { ascending: false }).limit(1000)),
       ]);
       return { overdue: overdue.data ?? [], activities: acts.data ?? [] };

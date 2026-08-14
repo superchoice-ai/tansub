@@ -103,3 +103,37 @@ Before continuing:
 7. continue to CS-2 only if every check passes.
 
 No retry of CS-1 and no later migration is permitted until these checks complete. CS-1 is written idempotently, but must not be blindly reapplied while its actual state is unknown.
+
+
+## 5. Recovery verification on 2026-08-15
+
+Lovable Database Query recovered temporarily.
+
+CS-1 passed all required checks:
+
+- `contracts.first_payment_at` exists as `timestamptz`;
+- 34 contracts with payments are marked;
+- zero payment rows belong to an unmarked contract;
+- authenticated DELETE privilege on `payments` is false;
+- all three CS-1 triggers exist with the expected event/table;
+- all three trigger functions exist.
+
+## 6. CS-2 execution on 2026-08-15
+
+Applied:
+
+`supabase/migrations/20260814131000_phase_b_cs2_phase_a_rule_alignment.sql`
+
+The database endpoint returned success.
+
+Post-apply data baseline remained unchanged:
+
+- contracts: 34;
+- payments: 314;
+- installments: 768;
+- closed contracts: 4;
+- all four linked closed applications remain `contracted`.
+
+The first function-definition verification query used an over-specific signature filter and returned no row. A corrected system-catalog query then received HTTP 504. A concurrent approval-status evidence query also received HTTP 504.
+
+Therefore CS-2 behavioral/function-definition verification is incomplete. Execution stopped before CS-3. No CS-3/CS-4 migration, fixture, merge, or deployment was performed.

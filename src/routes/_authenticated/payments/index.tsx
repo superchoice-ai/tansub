@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calculator, ChevronDown, ChevronRight, Receipt } from "lucide-react";
+import { Calculator, ChevronDown, ChevronRight, Receipt, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,6 +55,9 @@ function PaymentsPage() {
   const [penaltyPart, setPenaltyPart] = useState("");
   const [fees, setFees] = useState<Partial<Record<CashCategory, string>>>({});
   const [changeAmount, setChangeAmount] = useState("");
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidPayment, setVoidPayment] = useState<PaymentRow | null>(null);
+  const [voidReason, setVoidReason] = useState("");
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ["payments", branchId],
@@ -67,6 +70,18 @@ function PaymentsPage() {
 
   const { data: activeContracts } = useQuery({ queryKey: ["contracts-active", branchId], queryFn: async () => { let q = supabase.from("contracts").select("id, code, outstanding, installment_amount, customer_id, vehicles:vehicle_id(plate_no), customers:customer_id(full_name,national_id,phone,line_id)").in("status", ["active", "overdue"]).order("code"); if (branchId) q = q.eq("branch_id", branchId); const { data } = await q; return data ?? []; } });
   const { data: openInstallments } = useQuery({ queryKey: ["installments-open", contractId], enabled: !!contractId, queryFn: async () => { const { data, error } = await supabase.from("installments").select("*").eq("contract_id", contractId).neq("status", "paid").order("seq"); if (error) throw error; return data ?? []; } });
+
+  const { data: pendingPaymentVoids } = useQuery({
+    queryKey: ["payment-void-pending", branchId],
+    queryFn: async () => {
+      let q = supabase.from("approval_requests").select("entity_id").eq("type", "payment_void").eq("entity_table", "payments").eq("status", "pending");
+      if (branchId) q = q.eq("branch_id", branchId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const pendingVoidIds = useMemo(() => new Set((pendingPaymentVoids ?? []).map((row) => row.entity_id).filter(Boolean)), [pendingPaymentVoids]);
 
   const autoAllocate = () => { const amt = toSatang(amount || "0"); if (amt <= 0) return toast.error("กรุณากรอกจำนวนเงินตัดค่างวดก่อน"); let remaining = amt, p = 0, i = 0; for (const ins of openInstallments ?? []) { if (remaining <= 0) break; const due = Number(ins.total_amount) - Number(ins.paid_amount); const applied = Math.min(remaining, due); remaining -= applied; const ratio = Number(ins.total_amount) > 0 ? applied / Number(ins.total_amount) : 0; p += Math.round(Number(ins.principal_amount) * ratio); i += Math.round(Number(ins.interest_amount) * ratio); } setPrincipalPart(String(toBaht(p))); setInterestPart(String(toBaht(i))); toast.success("คำนวณช่องเงินต้น/ดอกเบี้ยให้แล้ว"); };
   const feeTotal = FEE_FIELDS.reduce((s, f) => s + toSatang(fees[f.key] || "0"), 0);
@@ -81,9 +96,10 @@ function PaymentsPage() {
       const { data: receiptNo, error: rErr } = await supabase.rpc("next_doc_no", { _branch: profile.branch_id, _doc_type: "RCP" }); if (rErr) throw rErr;
       const { data: installments, error: iErr } = await supabase.from("installments").select("*").eq("contract_id", contractId).neq("status", "paid").order("seq"); if (iErr) throw iErr;
       let remaining = amt, autoPrincipal = 0, autoInterest = 0; let firstInstallmentId: string | null = null;
-      for (const ins of installments ?? []) { if (remaining <= 0) break; const due = ins.total_amount - ins.paid_amount; const applied = Math.min(remaining, due); remaining -= applied; if (!firstInstallmentId) firstInstallmentId = ins.id; const ratio = ins.total_amount > 0 ? applied / ins.total_amount : 0; autoPrincipal += Math.round(ins.principal_amount * ratio); autoInterest += Math.round(ins.interest_amount * ratio); const newPaid = ins.paid_amount + applied; const { error } = await supabase.from("installments").update({ paid_amount: newPaid, status: newPaid >= ins.total_amount ? "paid" : "partial", paid_date: newPaid >= ins.total_amount ? paidAt : null }).eq("id", ins.id); if (error) throw error; }
+      const allocationSnapshot: Array<{ installment_id: string; seq: number; applied_amount: number; before_paid: number; after_paid: number; before_status: string; before_paid_date: string | null }> = [];
+      for (const ins of installments ?? []) { if (remaining <= 0) break; const due = ins.total_amount - ins.paid_amount; const applied = Math.min(remaining, due); remaining -= applied; if (!firstInstallmentId) firstInstallmentId = ins.id; const ratio = ins.total_amount > 0 ? applied / ins.total_amount : 0; autoPrincipal += Math.round(ins.principal_amount * ratio); autoInterest += Math.round(ins.interest_amount * ratio); const newPaid = ins.paid_amount + applied; allocationSnapshot.push({ installment_id: ins.id, seq: ins.seq, applied_amount: applied, before_paid: ins.paid_amount, after_paid: newPaid, before_status: ins.status, before_paid_date: ins.paid_date }); const { error } = await supabase.from("installments").update({ paid_amount: newPaid, status: newPaid >= ins.total_amount ? "paid" : "partial", paid_date: newPaid >= ins.total_amount ? paidAt : null }).eq("id", ins.id); if (error) throw error; }
       const pPart = principalPart.trim() ? toSatang(principalPart) : autoPrincipal; const iPart = interestPart.trim() ? toSatang(interestPart) : autoInterest; const penPart = toSatang(penaltyPart || "0");
-      const { data: created, error: pErr } = await supabase.from("payments").insert({ branch_id: profile.branch_id, receipt_no: receiptNo as string, contract_id: contractId, installment_id: firstInstallmentId, paid_at: paidAt, amount: amt, principal_part: pPart, interest_part: iPart, penalty_part: penPart, method, reference: reference || null, note: note || null, received_by: profile.id }).select("id").single(); if (pErr) throw pErr;
+      const { data: created, error: pErr } = await supabase.from("payments").insert({ branch_id: profile.branch_id, receipt_no: receiptNo as string, contract_id: contractId, installment_id: firstInstallmentId, paid_at: paidAt, amount: amt, principal_part: pPart, interest_part: iPart, penalty_part: penPart, method, reference: reference || null, note: note || null, received_by: profile.id, allocation_snapshot: allocationSnapshot }).select("id").single(); if (pErr) throw pErr;
       const contract: any = (activeContracts ?? []).find((c: any) => c.id === contractId); const newOutstanding = Math.max(0, (contract?.outstanding ?? 0) - amt); const { error: cErr } = await supabase.from("contracts").update({ outstanding: newOutstanding, status: newOutstanding === 0 ? "closed" : "active" }).eq("id", contractId); if (cErr) throw cErr;
       const lines = [{ category: "principal" as CashCategory, amount: pPart }, { category: "interest" as CashCategory, amount: iPart }, { category: "penalty" as CashCategory, amount: penPart }, ...FEE_FIELDS.map((f) => ({ category: f.key, amount: toSatang(fees[f.key] || "0") }))].filter((l) => l.amount > 0);
       const total = amt + feeTotal;
@@ -93,9 +109,59 @@ function PaymentsPage() {
     onSuccess: () => { toast.success("บันทึกการรับชำระเรียบร้อย"); setOpen(false); resetForm(); void qc.invalidateQueries(); }, onError: (e: Error) => toast.error(e.message),
   });
 
+  const requestPaymentVoid = useMutation({
+    mutationFn: async () => {
+      if (!voidPayment) throw new Error("ไม่พบ Payment ที่ต้องการ Void");
+      if (!profile?.id) throw new Error("ไม่พบข้อมูลผู้ใช้งาน");
+      const reason = voidReason.trim();
+      if (!reason) throw new Error("กรุณาระบุเหตุผลการ Void");
+      const { error } = await supabase.from("approval_requests").insert({
+        branch_id: voidPayment.branch_id,
+        type: "payment_void",
+        entity_table: "payments",
+        entity_id: voidPayment.id,
+        entity_label: voidPayment.receipt_no,
+        payload: { operation: "void", contract_id: voidPayment.contract_id },
+        reason,
+        requested_by: profile.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("ส่งคำขอ Void Payment ให้ผู้อนุมัติแล้ว");
+      setVoidOpen(false);
+      setVoidPayment(null);
+      setVoidReason("");
+      void qc.invalidateQueries({ queryKey: ["payment-void-pending"] });
+      void qc.invalidateQueries({ queryKey: ["approvals"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const bangkokDate = (value: string) => new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+  const todayBangkok = bangkokDate(new Date().toISOString());
+  const openVoidDialog = (payment: PaymentRow) => {
+    setVoidPayment(payment);
+    setVoidReason("");
+    setVoidOpen(true);
+  };
+
   const selected: any = (activeContracts ?? []).find((c: any) => c.id === contractId);
   const contractOptions = (activeContracts ?? []).map((c: any) => ({ value: c.id, label: `${c.code} — ${c.customers?.full_name} — คงค้าง ฿${formatMoney(c.outstanding)}`, keywords: [c.code, c.customers?.full_name, c.customers?.national_id, c.customers?.phone, c.customers?.line_id, c.vehicles?.plate_no] }));
   const filtered = (payments ?? []).filter((p: PaymentRow) => includesThaiSearch(search, [p.receipt_no, p.contracts?.code, p.contracts?.customers?.full_name, p.contracts?.customers?.national_id, p.contracts?.customers?.phone, p.contracts?.customers?.line_id, p.reference, p.branches?.name, PAYMENT_METHOD_LABEL[p.method]]));
+
+  const latestPaymentIdByContract = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const payment of payments ?? []) {
+      if (!latest.has(payment.contract_id)) latest.set(payment.contract_id, payment.id);
+    }
+    return latest;
+  }, [payments]);
 
   const groupedPayments = useMemo<PaymentGroup[]>(() => {
     const groups = new Map<string, PaymentGroup>();
@@ -104,7 +170,7 @@ function PaymentsPage() {
       const existing = groups.get(key);
       if (existing) {
         existing.payments.push(payment);
-        existing.totalAmount += Number(payment.amount ?? 0);
+        if (!payment.voided) existing.totalAmount += Number(payment.amount ?? 0);
         if (!existing.latestPaidAt || (payment.paid_at && payment.paid_at > existing.latestPaidAt)) existing.latestPaidAt = payment.paid_at;
         continue;
       }
@@ -115,7 +181,7 @@ function PaymentsPage() {
         branchName: payment.branches?.name ?? "-",
         payments: [payment],
         latestPaidAt: payment.paid_at ?? null,
-        totalAmount: Number(payment.amount ?? 0),
+        totalAmount: payment.voided ? 0 : Number(payment.amount ?? 0),
       });
     }
     return Array.from(groups.values()).sort((a, b) => (b.latestPaidAt ?? "").localeCompare(a.latestPaidAt ?? ""));
@@ -150,9 +216,41 @@ function PaymentsPage() {
           {isHQ && <TableCell>{group.branchName}</TableCell>}
           <TableCell className="text-right font-semibold">฿{formatMoney(group.totalAmount)}</TableCell>
         </TableRow>
-        {expanded && <TableRow className="bg-muted/10 hover:bg-muted/10"><TableCell colSpan={isHQ ? 7 : 6} className="p-0"><div className="overflow-x-auto border-y bg-background"><Table><TableHeader><TableRow><TableHead className="pl-12">เลขที่ใบเสร็จ</TableHead><TableHead>วันที่ชำระ</TableHead><TableHead>ช่องทาง</TableHead><TableHead>อ้างอิง</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">จำนวนเงิน</TableHead></TableRow></TableHeader><TableBody>{group.payments.map((p: PaymentRow) => <TableRow key={p.id} className={p.voided ? "opacity-50 line-through" : ""}><TableCell className="pl-12 font-medium">{p.receipt_no}</TableCell><TableCell>{formatThaiDate(p.paid_at)}</TableCell><TableCell>{PAYMENT_METHOD_LABEL[p.method] ?? p.method}</TableCell><TableCell>{p.reference ?? "-"}</TableCell><TableCell className="text-right">{formatMoney(p.principal_part)}</TableCell><TableCell className="text-right">{formatMoney(p.interest_part)}</TableCell><TableCell className="text-right font-medium">฿{formatMoney(p.amount)}</TableCell></TableRow>)}</TableBody></Table></div></TableCell></TableRow>}
+        {expanded && <TableRow className="bg-muted/10 hover:bg-muted/10"><TableCell colSpan={isHQ ? 7 : 6} className="p-0"><div className="overflow-x-auto border-y bg-background"><Table><TableHeader><TableRow><TableHead className="pl-12">เลขที่ใบเสร็จ</TableHead><TableHead>วันที่ชำระ</TableHead><TableHead>ช่องทาง</TableHead><TableHead>อ้างอิง</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">จำนวนเงิน</TableHead><TableHead className="text-right">จัดการ</TableHead></TableRow></TableHeader><TableBody>{group.payments.map((p: PaymentRow, index: number) => {
+          const isLatest = latestPaymentIdByContract.get(p.contract_id) === p.id;
+          const sameBangkokDay = bangkokDate(p.created_at) === todayBangkok;
+          const pendingVoid = pendingVoidIds.has(p.id);
+          const canRequestVoid = isLatest && !p.voided && sameBangkokDay && !pendingVoid;
+          return <TableRow key={p.id} className={p.voided ? "opacity-50 line-through" : ""}>
+            <TableCell className="pl-12 font-medium">{p.receipt_no}{p.voided && <span className="ml-2 text-xs text-destructive">Void</span>}</TableCell>
+            <TableCell>{formatThaiDate(p.paid_at)}</TableCell>
+            <TableCell>{PAYMENT_METHOD_LABEL[p.method] ?? p.method}</TableCell>
+            <TableCell>{p.reference ?? "-"}</TableCell>
+            <TableCell className="text-right">{formatMoney(p.principal_part)}</TableCell>
+            <TableCell className="text-right">{formatMoney(p.interest_part)}</TableCell>
+            <TableCell className="text-right font-medium">฿{formatMoney(p.amount)}</TableCell>
+            <TableCell className="text-right">{pendingVoid ? <span className="text-xs text-amber-600">รออนุมัติ Void</span> : canRequestVoid ? <Button type="button" size="sm" variant="outline" onClick={() => openVoidDialog(p)}><Undo2 className="size-3.5" /> ขอ Void</Button> : isLatest && !p.voided && !sameBangkokDay ? <span className="text-xs text-muted-foreground">ข้ามวันแล้ว</span> : null}</TableCell>
+          </TableRow>;
+        })}</TableBody></Table></div></TableCell></TableRow>}
       </Fragment>;
     })}</TableBody></Table></div><StandardPagination page={pagination.page} pageSize={pageSize} total={groupedPayments.length} onPageChange={setPage} onPageSizeChange={setPageSize}/></>}</CardContent></Card>
+
+    <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>ขอ Void Payment {voidPayment?.receipt_no ?? ""}</DialogTitle>
+          <DialogDescription>Void ได้เฉพาะ Payment ล่าสุดของสัญญาและต้องอนุมัติภายในวันเดียวกับเวลาที่บันทึก ระบบจะยังไม่เปลี่ยนข้อมูลระหว่างรออนุมัติ</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="payment-void-reason">เหตุผล *</Label>
+          <Textarea id="payment-void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} rows={4} placeholder="ระบุเหตุผลที่ต้อง Void Payment" />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setVoidOpen(false)}>กลับ</Button>
+          <Button variant="destructive" onClick={() => requestPaymentVoid.mutate()} disabled={requestPaymentVoid.isPending || !voidReason.trim()}>ส่งขออนุมัติ Void</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>บันทึกการรับชำระ</DialogTitle><DialogDescription>พิมพ์ชื่อไทยหรือข้อมูลบางส่วนเพื่อค้นหาสัญญา</DialogDescription></DialogHeader><div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1"><div><Label>สัญญา *</Label><SearchableCombobox value={contractId} onValueChange={setContractId} options={contractOptions} placeholder="ค้นหา/เลือกสัญญา" searchPlaceholder="เลขสัญญา / ชื่อ / เลขบัตร / โทร / LINEID / ทะเบียน" />{selected && <p className="mt-1 text-xs text-muted-foreground">ค่างวด ฿{formatMoney(selected.installment_amount)} · คงค้าง ฿{formatMoney(selected.outstanding)}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label>จำนวนเงิน *</Label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div><div><Label>วันที่ชำระ</Label><Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></div></div><div className="rounded-md border p-3"><div className="mb-2 flex items-center justify-between"><p className="text-sm font-medium">แยกช่องรายรับ</p><Button type="button" variant="outline" size="sm" onClick={autoAllocate}><Calculator className="size-4" /> คำนวณ</Button></div><div className="grid gap-3 sm:grid-cols-3"><div><Label className="text-xs">เงินต้น</Label><Input type="number" value={principalPart} onChange={(e) => setPrincipalPart(e.target.value)} /></div><div><Label className="text-xs">ดอกเบี้ย</Label><Input type="number" value={interestPart} onChange={(e) => setInterestPart(e.target.value)} /></div><div><Label className="text-xs">ค่าปรับ</Label><Input type="number" value={penaltyPart} onChange={(e) => setPenaltyPart(e.target.value)} /></div>{FEE_FIELDS.map((f) => <div key={f.key}><Label className="text-xs">{f.label}</Label><Input type="number" value={fees[f.key] ?? ""} onChange={(e) => setFees((s) => ({...s,[f.key]:e.target.value}))} /></div>)}<div><Label className="text-xs">เงินทอน</Label><Input type="number" value={changeAmount} onChange={(e) => setChangeAmount(e.target.value)} /></div></div><p className="mt-3 text-right text-sm font-bold">รวมรับ ฿{formatMoney(receiptTotal)}</p></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>ช่องทาง</Label><Select value={method} onValueChange={setMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(PAYMENT_METHOD_LABEL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div><div><Label>เลขที่อ้างอิง</Label><Input value={reference} onChange={(e) => setReference(e.target.value)} /></div></div><div><Label>หมายเหตุ</Label><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} /></div></div><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>ยกเลิก</Button><Button onClick={() => receive.mutate()} disabled={receive.isPending}>บันทึกและออกใบเสร็จ</Button></DialogFooter></DialogContent></Dialog>
   </div>;

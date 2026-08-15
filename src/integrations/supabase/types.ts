@@ -1197,6 +1197,7 @@ export type Database = {
       }
       payments: {
         Row: {
+          allocation_snapshot: Json
           amount: number
           branch_id: string
           contract_id: string
@@ -1213,8 +1214,13 @@ export type Database = {
           received_by: string | null
           reference: string | null
           voided: boolean
+          voided_at: string | null
+          voided_by: string | null
+          void_reason: string | null
+          void_approval_id: string | null
         }
         Insert: {
+          allocation_snapshot?: Json
           amount?: number
           branch_id: string
           contract_id: string
@@ -1231,8 +1237,13 @@ export type Database = {
           received_by?: string | null
           reference?: string | null
           voided?: boolean
+          voided_at?: string | null
+          voided_by?: string | null
+          void_reason?: string | null
+          void_approval_id?: string | null
         }
         Update: {
+          allocation_snapshot?: Json
           amount?: number
           branch_id?: string
           contract_id?: string
@@ -1249,6 +1260,10 @@ export type Database = {
           received_by?: string | null
           reference?: string | null
           voided?: boolean
+          voided_at?: string | null
+          voided_by?: string | null
+          void_reason?: string | null
+          void_approval_id?: string | null
         }
         Relationships: [
           {
@@ -1270,6 +1285,20 @@ export type Database = {
             columns: ["installment_id"]
             isOneToOne: false
             referencedRelation: "installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_void_approval_id_fkey"
+            columns: ["void_approval_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -329,3 +329,40 @@ This plan does not authorize:
 The next permissible action is to resolve Gates U1–U4 and approve the exact first implementation slice.
 
 Implementation has started only on the isolated feature branch. The next operational action is CS-0 execution against the demo database. No merge to `main`, migration execution, Lovable deployment, or production cutover is authorized by this document.
+
+
+## 10. Contract Detail Hook-ordering Impact Review — 2026-08-23
+
+### Scope and evidence
+
+- **Repository/branch:** `superchoice-ai/tansub` / `phase-b-contract-cancel`.
+- **Target environment:** Lovable Demo Preview only; `main`, deployment, and PROD are excluded.
+- **Observed regression:** authenticated navigation to `/_authenticated/contracts/$contractId` failed with `Rendered more hooks than during the previous render`.
+- **Confirmed cause:** `useMutation()` was declared after the loading and missing-contract early returns. The first render skipped that Hook; a later data render called it, changing Hook order.
+
+### Dependency and consumer trace
+
+- Direct file: `src/routes/_authenticated/contracts/$contractId.tsx`.
+- Direct consumers: contract-list detail links, contract detail loading/not-found states, cancellation request dialog, React Query caches `contract` and `approvals`.
+- Data/API path retained unchanged: read-only selects from `contracts`, `installments`, `payments`, `approval_requests`, and `audit_logs`; cancellation producer inserts only `approval_requests`.
+- Explicitly unaffected: Approval Engine/executor, Supabase migrations/RLS/proxy/client, payment-void page, application workflow, reports, printing content, and all business eligibility rules.
+
+### Risks and invariants
+
+- The fix must not allow a mutation while contract data is absent.
+- Loading and not-found renders must remain valid.
+- Paid contracts must continue hiding the cancellation action.
+- Eligible `active`/`overdue` contracts with no payment evidence and no pending request may show the action.
+- Pending/rejected requests must not mutate contract, application, installment, payment, cash, or audit business data.
+
+### Approved minimal implementation
+
+Declare the contract value before early returns, declare `useMutation()` unconditionally, and add a mutation-function guard that rejects when the contract is unavailable. Remove the later duplicate contract declaration. No other behavior or file is changed.
+
+### Validation and rollback
+
+- Build/lint validation where available.
+- Lovable authenticated regression: loading/detail page renders without Hook error; paid contract detail opens and has no cancel action; Payment and Approval pages still load.
+- Eligible/pending behavioral cases require an isolated authorized fixture; existing Demo contracts must not be changed to manufacture eligibility.
+- Rollback: revert only the atomic Hook-ordering code commit on `phase-b-contract-cancel`.
+- Acceptance remains fail-closed: no merge/deploy until the full Phase B regression gate passes.

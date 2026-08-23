@@ -366,3 +366,23 @@ Declare the contract value before early returns, declare `useMutation()` uncondi
 - Eligible/pending behavioral cases require an isolated authorized fixture; existing Demo contracts must not be changed to manufacture eligibility.
 - Rollback: revert only the atomic Hook-ordering code commit on `phase-b-contract-cancel`.
 - Acceptance remains fail-closed: no merge/deploy until the full Phase B regression gate passes.
+
+
+## 11. Contract Detail cancelled-schedule presentation decision — 2026-08-23
+
+### Interpretation confirmation
+
+- **Artifact that required confirmation:** CS-5 previously stated that cancelled contract detail could show audit-based schedule history, while Demo regression showed three historical installment rows after the live `installments` rows had been deleted.
+- **Confirmed business meaning:** after approved cancellation, Contract Detail must hide the installment schedule entirely. The audit snapshot remains durable backend evidence only and is not rendered as the current schedule.
+- **Decision owner:** SuperChoice, confirmed 2026-08-23.
+- **Explicit exclusions:** do not delete or alter `audit_logs`; do not change the executor, database schema, print route, payment history, balances, or non-cancelled contract presentation.
+
+### Full-project impact review
+
+- **Direct file:** `src/routes/_authenticated/contracts/$contractId.tsx`.
+- **Direct consumers:** authenticated Contract Detail for active, overdue, closed, and cancelled contracts.
+- **Preserved behavior:** active/overdue/closed schedules remain unchanged; cancellation eligibility, pending/rejected behavior, atomic executor, application reflection, installment deletion, and audit snapshot persistence remain unchanged.
+- **Risks:** accidentally hiding schedules for non-cancelled contracts; removing audit evidence; changing grid/layout behavior; affecting print/history consumers.
+- **Regression plan:** cancelled fixture shows cancelled status with no installment heading/table/rows; SQL still proves zero live installments and one snapshot audit; active fixture still shows its schedule; payment history remains visible; payment_void regression remains unchanged.
+- **Rollback:** revert only the Contract Detail presentation commit on `phase-b-contract-cancel`.
+- **Gate:** Demo Preview regression is required before merge/deploy; `main`, deploy, and PROD remain unauthorized.

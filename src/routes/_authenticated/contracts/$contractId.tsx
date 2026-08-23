@@ -63,10 +63,7 @@ function ContractDetail() {
     refetchOnWindowFocus: "always",
   });
 
-  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
-  if (!data?.contract) return <EmptyState title="ไม่พบสัญญา" />;
-
-  const c = data.contract;
+  const c = data?.contract;
   const today = todayISO();
   const printContract = () => {
     const url = `/contract-print/${encodeURIComponent(contractId)}`;
@@ -81,6 +78,7 @@ function ContractDetail() {
 
   const requestCancel = useMutation({
     mutationFn: async () => {
+      if (!c) throw new Error("ไม่พบข้อมูลสัญญา");
       const reason = cancelReason.trim();
       if (!reason) throw new Error("กรุณาระบุเหตุผลการยกเลิกสัญญา");
       const { error } = await supabase.from("approval_requests").insert({
@@ -104,6 +102,9 @@ function ContractDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
+  if (!c || !data) return <EmptyState title="ไม่พบสัญญา" />;
 
   const hasPaymentEvidence = c.first_payment_at != null || data.payments.length >= 1;
   const auditedInstallments = ((data.cancellationAudit?.detail as Record<string, unknown> | null)?.installments_before ?? []) as typeof data.installments;

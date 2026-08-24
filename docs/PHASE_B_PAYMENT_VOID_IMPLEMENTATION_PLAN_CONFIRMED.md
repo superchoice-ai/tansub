@@ -95,3 +95,65 @@ Do not apply the migration or run mutating regression fixtures while Supabase
 API/JWT or Lovable Database Query is degraded. Static review and GitHub branch
 work may continue. Demo apply, regression, merge, and deployment require
 separate evidence at each gate.
+
+
+## Permission hardening impact review — 2026-08-24
+
+### Evidence and confirmed interpretation
+
+- Lovable Cloud SQL Editor showed that `perform_contract_cancel(uuid)` and
+  `perform_payment_void(uuid)` still granted `EXECUTE` to database role
+  `anon`.
+- `execute_approval_request(uuid, boolean, text)` was recreated without first
+  revoking PostgreSQL's default `PUBLIC EXECUTE`, so it was also callable by
+  `anon`.
+- Confirmed Phase B rule: financial mutation may execute only through the
+  authenticated Approval Engine after manager/approver authorization. Internal
+  executor functions are never public API.
+- This review does not change business eligibility, workflow meaning, UI,
+  schema, data, or the exclusion of `restructure`.
+
+### Affected objects and dependency trace
+
+- Repository: `superchoice-ai/tansub`
+- Branch: `phase-b-contract-cancel`
+- Environment: Demo/UAT only
+- Database functions:
+  `execute_approval_request(uuid,boolean,text)`,
+  `execute_approval_request_phase_a_contract_cancel(uuid,boolean,text)`,
+  `perform_contract_cancel(uuid)`, and `perform_payment_void(uuid)`.
+- Consumer path:
+  Preview UI → authenticated RPC `execute_approval_request` → internal Phase A
+  dispatcher or Phase B executor → contracts/payments/installments/cash/audit.
+- Unchanged consumers: authenticated manager/approver calls to the public
+  Approval Engine wrapper.
+
+### Risks and controls
+
+- Existing risk: an anonymous caller that obtained a pending approval UUID could
+  call a SECURITY DEFINER internal executor and bypass the approver check.
+- Compatibility risk: revoking the wrong function could stop the authenticated
+  Approval UI.
+- Control: use a forward-only migration; revoke `PUBLIC` and `anon` from the
+  wrapper and internal functions; grant only the wrapper to `authenticated`;
+  leave internal calls available to their SECURITY DEFINER owner.
+- No table row, fixture, enum, trigger, RLS policy, proxy, Auth configuration, or
+  production environment is modified by the migration.
+
+### Regression and acceptance
+
+1. ACL assertion: wrapper executable by `authenticated`, not `anon` or
+   `PUBLIC`.
+2. ACL assertion: both internal executors and the preserved Phase A core are not
+   executable by `authenticated`, `anon`, or `PUBLIC`.
+3. Wrapper definition still requires `auth.uid()` and manager/approver role.
+4. Existing 12 PB-TEST behavioral assertions remain true.
+5. Preview continues to display only latest-payment Void evidence and hides
+   installments for cancelled contracts.
+6. No merge/deploy while the external readiness gate is degraded.
+
+### Rollback
+
+Use a reviewed forward migration that restores only the prior grants. Do not
+rewrite migration history. Emergency UI rollback is to hide Phase B entry
+points while preserving all financial and audit evidence.

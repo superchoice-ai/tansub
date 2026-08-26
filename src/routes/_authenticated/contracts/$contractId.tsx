@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Eye, Printer, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Eye, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ContractPromisPrint, FALLBACK_COMPANY, type CompanyConfig } from "@/components/ContractPromisPrint";
@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoney, formatThaiDate, todayISO } from "@/lib/format";
 import { CONTRACT_STATUS_LABEL, INSTALLMENT_STATUS_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/labels";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/contracts/$contractId")({
   head: () => ({
@@ -28,13 +31,17 @@ export const Route = createFileRoute("/_authenticated/contracts/$contractId")({
 
 function ContractDetail() {
   const { contractId } = Route.useParams();
+  const { profile } = useAuth();
+  const qc = useQueryClient();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const companySetting = useSystemSetting<CompanyConfig>("company", FALLBACK_COMPANY);
 
   const { data, isLoading } = useQuery({
     queryKey: ["contract", contractId],
     queryFn: async () => {
-      const [c, ins, pay] = await Promise.all([
+      const [c, ins, pay, pendingCancel, cancellationAudit] = await Promise.all([
         supabase
           .from("contracts")
           .select("*, customers:customer_id(id,code,full_name,national_id,phone,address,district,province,postcode,birth_date), vehicles:vehicle_id(plate_no,plate_province,brand,model,vehicle_type,chassis_no), branches:branch_id(name,address)")
@@ -42,20 +49,21 @@ function ContractDetail() {
           .maybeSingle(),
         supabase.from("installments").select("*").eq("contract_id", contractId).order("seq"),
         supabase.from("payments").select("*").eq("contract_id", contractId).order("paid_at", { ascending: false }),
+        supabase.from("approval_requests").select("id, status, reason, created_at").eq("type", "contract_cancel").eq("entity_table", "contracts").eq("entity_id", contractId).eq("status", "pending").maybeSingle(),
+        supabase.from("audit_logs").select("detail, created_at").eq("action", "contract_cancel_snapshot").eq("entity_table", "contracts").eq("entity_id", contractId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (c.error) throw c.error;
       if (ins.error) throw ins.error;
       if (pay.error) throw pay.error;
-      return { contract: c.data, installments: ins.data ?? [], payments: pay.data ?? [] };
+      if (pendingCancel.error) throw pendingCancel.error;
+      if (cancellationAudit.error) throw cancellationAudit.error;
+      return { contract: c.data, installments: ins.data ?? [], payments: pay.data ?? [], pendingCancel: pendingCancel.data, cancellationAudit: cancellationAudit.data };
     },
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
 
-  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
-  if (!data?.contract) return <EmptyState title="ไม่พบสัญญา" />;
-
-  const c = data.contract;
+  const c = data?.contract;
   const today = todayISO();
   const printContract = () => {
     const url = `/contract-print/${encodeURIComponent(contractId)}`;
@@ -68,6 +76,41 @@ function ContractDetail() {
     toast.success("โหลดข้อมูลบริษัทล่าสุดจาก DB แล้ว");
   };
 
+  const requestCancel = useMutation({
+    mutationFn: async () => {
+      if (!c) throw new Error("ไม่พบข้อมูลสัญญา");
+      const reason = cancelReason.trim();
+      if (!reason) throw new Error("กรุณาระบุเหตุผลการยกเลิกสัญญา");
+      const { error } = await supabase.from("approval_requests").insert({
+        branch_id: c.branch_id,
+        type: "contract_cancel",
+        entity_table: "contracts",
+        entity_id: c.id,
+        entity_label: c.code,
+        payload: { operation: "cancel" },
+        reason,
+        requested_by: profile?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("ส่งคำขอยกเลิกสัญญาให้ผู้อนุมัติแล้ว");
+      setCancelOpen(false);
+      setCancelReason("");
+      void qc.invalidateQueries({ queryKey: ["contract", contractId] });
+      void qc.invalidateQueries({ queryKey: ["approvals"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
+  if (!c || !data) return <EmptyState title="ไม่พบสัญญา" />;
+
+  const hasPaymentEvidence = c.first_payment_at != null || data.payments.length >= 1;
+  const auditedInstallments = ((data.cancellationAudit?.detail as Record<string, unknown> | null)?.installments_before ?? []) as typeof data.installments;
+  const displayInstallments = data.installments.length > 0 ? data.installments : auditedInstallments;
+  const canRequestCancel = ["active", "overdue"].includes(c.status) && !hasPaymentEvidence && !data.pendingCancel;
+
   return (
     <div>
       <Button asChild variant="ghost" size="sm" className="no-print mb-2">
@@ -77,7 +120,7 @@ function ContractDetail() {
       <PageHeader
         title={`สัญญาเลขที่ ${c.code}`}
         description={`${c.customers?.full_name ?? "-"} · ทะเบียน ${c.vehicles?.plate_no ?? "-"} · ${c.branches?.name ?? ""}`}
-        actions={<><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} /><Button variant="outline" onClick={() => void refreshConfig()} disabled={companySetting.isFetching}><RefreshCw className={companySetting.isFetching ? "size-4 animate-spin" : "size-4"} /> โหลดค่าล่าสุด</Button><Button variant="outline" onClick={() => setPreviewOpen(true)}><Eye className="size-4" /> Preview สัญญา</Button><Button onClick={printContract}><Printer className="size-4" /> พิมพ์</Button></>}
+        actions={<><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} />{data.pendingCancel && <StatusPill status="pending" label="รออนุมัติยกเลิกสัญญา" />}{canRequestCancel && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Trash2 className="size-4" /> ขอยกเลิกสัญญา</Button>}<Button variant="outline" onClick={() => void refreshConfig()} disabled={companySetting.isFetching}><RefreshCw className={companySetting.isFetching ? "size-4 animate-spin" : "size-4"} /> โหลดค่าล่าสุด</Button><Button variant="outline" onClick={() => setPreviewOpen(true)}><Eye className="size-4" /> Preview สัญญา</Button><Button onClick={printContract}><Printer className="size-4" /> พิมพ์</Button></>}
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -85,10 +128,27 @@ function ContractDetail() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-base">ตารางผ่อนชำระ ({c.term_months} งวด · ดอกเบี้ย {Number(c.interest_rate)}%/เดือน)</CardTitle></CardHeader><CardContent className="p-0"><div className="max-h-[520px] overflow-auto"><Table><TableHeader><TableRow><TableHead>งวด</TableHead><TableHead>ครบกำหนด</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">รวม</TableHead><TableHead className="text-right">ชำระแล้ว</TableHead><TableHead>สถานะ</TableHead></TableRow></TableHeader><TableBody>{data.installments.map((i) => { const overdue = i.status !== "paid" && i.due_date < today; return <TableRow key={i.id}><TableCell className="tabular">{i.seq}</TableCell><TableCell className="tabular">{formatThaiDate(i.due_date)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.principal_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.interest_amount)}</TableCell><TableCell className="tabular text-right font-medium">{formatMoney(i.total_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.paid_amount)}</TableCell><TableCell><StatusPill status={overdue ? "overdue" : i.status} label={overdue ? "เกินกำหนด" : (INSTALLMENT_STATUS_LABEL[i.status] ?? i.status)} /></TableCell></TableRow>; })}</TableBody></Table></div></CardContent></Card>
+        {c.status !== "cancelled" && <Card className="lg:col-span-2"><CardHeader className="pb-2"><CardTitle className="text-base">ตารางผ่อนชำระ ({c.term_months} งวด · ดอกเบี้ย {Number(c.interest_rate)}%/เดือน)</CardTitle></CardHeader><CardContent className="p-0">{c.status === "cancelled" && displayInstallments.length === 0 ? <p className="p-6 text-sm text-destructive">ไม่พบ Snapshot ตารางงวดใน Audit Log กรุณาตรวจสอบข้อมูล</p> : <div className="max-h-[520px] overflow-auto"><Table><TableHeader><TableRow><TableHead>งวด</TableHead><TableHead>ครบกำหนด</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ดอกเบี้ย</TableHead><TableHead className="text-right">รวม</TableHead><TableHead className="text-right">ชำระแล้ว</TableHead><TableHead>สถานะ</TableHead></TableRow></TableHeader><TableBody>{displayInstallments.map((i) => { const overdue = i.status !== "paid" && i.due_date < today; return <TableRow key={i.id}><TableCell className="tabular">{i.seq}</TableCell><TableCell className="tabular">{formatThaiDate(i.due_date)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.principal_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.interest_amount)}</TableCell><TableCell className="tabular text-right font-medium">{formatMoney(i.total_amount)}</TableCell><TableCell className="tabular text-right">{formatMoney(i.paid_amount)}</TableCell><TableCell><StatusPill status={overdue ? "overdue" : i.status} label={overdue ? "เกินกำหนด" : (INSTALLMENT_STATUS_LABEL[i.status] ?? i.status)} /></TableCell></TableRow>; })}</TableBody></Table></div>}</CardContent></Card>}
 
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">ประวัติการรับชำระ</CardTitle></CardHeader><CardContent className="p-0">{data.payments.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">ยังไม่มีการชำระเงิน</p> : <Table><TableHeader><TableRow><TableHead>เลขที่ใบเสร็จ</TableHead><TableHead>วันที่</TableHead><TableHead className="text-right">จำนวน</TableHead></TableRow></TableHeader><TableBody>{data.payments.map((p) => <TableRow key={p.id} className={p.voided ? "opacity-50 line-through" : ""}><TableCell className="tabular text-xs">{p.receipt_no}<span className="block text-muted-foreground">{PAYMENT_METHOD_LABEL[p.method] ?? p.method}</span></TableCell><TableCell className="tabular">{formatThaiDate(p.paid_at)}</TableCell><TableCell className="tabular text-right">฿{formatMoney(p.amount)}</TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
       </div>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ขอยกเลิกสัญญา {c.code}</DialogTitle>
+            <DialogDescription>คำขอนี้ยังไม่เปลี่ยนข้อมูลจนกว่าจะได้รับอนุมัติ สัญญาที่เคยรับชำระแล้วจะยกเลิกไม่ได้</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="contract-cancel-reason">เหตุผล *</Label>
+            <Textarea id="contract-cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={4} placeholder="ระบุเหตุผลที่ต้องยกเลิกสัญญา" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>กลับ</Button>
+            <Button variant="destructive" onClick={() => requestCancel.mutate()} disabled={requestCancel.isPending || !cancelReason.trim()}>ส่งขออนุมัติ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-h-[96vh] overflow-hidden sm:max-w-[min(96vw,1100px)]">

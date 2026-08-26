@@ -2,9 +2,9 @@
 
 - **Repository:** `superchoice-ai/tansub`
 - **Environment reviewed:** Lovable/Supabase demo environment; not production
-- **Review status:** DRAFT — IMPACT REVIEW ONLY
-- **Implementation status:** NOT AUTHORIZED / NOT IMPLEMENTED
-- **Approval Engine status:** `payment_void` remains fail-closed until every decision gate is resolved and explicitly approved.
+- **Review status:** CONFIRMED — IMPLEMENTATION SLICE AUTHORIZED
+- **Implementation status:** PREPARED ON FEATURE BRANCH — NOT APPLIED / NOT MERGED / NOT DEPLOYED
+- **Approval Engine status:** exact `payment_void` dispatch prepared; remains inactive until migration apply and regression evidence pass.
 - **Sequence:** This is the second active Phase B workflow, after `contract_cancel`. `restructure` is out of scope and unsupported. This review does not authorize runtime implementation.
 
 ## 1. Meaning and boundary
@@ -223,3 +223,24 @@ No runtime change is made in this review. Future implementation requires atomic 
 `payment_void` is not ready for implementation. The Impact Review identifies the full dependency surface, primary allocation blocker, and Gates A–K.
 
 Current fail-closed behavior is correct. Next action: business decisions for Gates A–K, followed by a separate implementation impact update and explicit implementation approval.
+
+
+## 13. Confirmed implementation decision — 2026-08-16
+
+The decision owner replaced Gates A–K with this exact initial business rule:
+
+1. only the latest Payment of a contract may be voided;
+2. latest is ordered by `payments.created_at DESC, payments.id DESC`;
+3. the approval must complete on the same Asia/Bangkok calendar date as
+   `payments.created_at`; a later-day Void is prohibited because it affects
+   the accounting period;
+4. staff controls normal one-receipt-per-installment handling; the system must
+   not add other business eligibility gates;
+5. pending/rejected requests mutate no business data, while approval reflects
+   all related data atomically and preserves financial history.
+
+Implementation details and regression gates are recorded in
+`docs/PHASE_B_PAYMENT_VOID_IMPLEMENTATION_PLAN_CONFIRMED.md`.
+
+This confirmation does not authorize production deployment. Demo migration
+apply and mutating regression remain behind the System Readiness Gate.

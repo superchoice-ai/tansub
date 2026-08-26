@@ -67,7 +67,8 @@ function DashboardPage() {
         bf(
           supabase
             .from("installments")
-            .select("id, total_amount, paid_amount, due_date, contract_id")
+            .select("id, total_amount, paid_amount, due_date, contract_id, contracts:contract_id!inner(status)")
+            .in("contracts.status", ["active", "overdue"])
             .lt("due_date", today)
             .in("status", ["unpaid", "partial", "overdue"]),
         ),

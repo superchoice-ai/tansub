@@ -119,7 +119,8 @@ async function overdueBuckets(branchId: string | null | undefined) {
   const today = todayISO();
   let iq = supabase
     .from("installments")
-    .select("contract_id, due_date, total_amount, paid_amount, status")
+    .select("contract_id, due_date, total_amount, paid_amount, status, contracts:contract_id!inner(status)")
+    .in("contracts.status", ["active", "overdue"])
     .lt("due_date", today)
     .neq("status", "paid")
     .limit(5000);

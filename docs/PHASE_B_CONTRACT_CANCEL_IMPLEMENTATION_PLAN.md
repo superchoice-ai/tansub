@@ -2,7 +2,7 @@
 
 - **Repository:** `superchoice-ai/tansub`
 - **Environment:** Lovable/Supabase demo; not production
-- **Plan status:** READY FOR REVIEW — NOT AUTHORIZED FOR IMPLEMENTATION
+- **Plan status:** PAUSED FAIL-CLOSED AFTER CS-2 — FUNCTION VERIFICATION BLOCKED / NOT MERGED / NOT DEPLOYED
 - **Active workflow:** `contract_cancel`
 - **Later workflow:** `payment_void` requires a separate F1 plan
 - **Excluded:** `restructure` remains unsupported and fail-closed
@@ -274,32 +274,41 @@ No step passes from UI-only evidence. Database reconciliation is mandatory.
 - remaining unverified areas;
 - explicit approval for the next change set.
 
-## 7. Unresolved interpretation gates before coding
+## 7. Resolved implementation interpretation gates
 
-These details were not included in the five confirmed decisions and must not be inferred:
+The decision owner confirmed all four gates on 2026-08-14:
 
-### Gate U1 — Cancellable lifecycle
+- **U1 — Cancellable lifecycle:** both `active` and `overdue` are eligible when no payment event has ever existed.
+- **U2 — Payment marker:** eligibility changes when payment count reaches at least one. The implementation records the database time of the first inserted payment event in `first_payment_at`; staff-entered/backdated `paid_at` does not control the permanent lock.
+- **U3 — Schedule snapshot:** store the complete pre-cancellation installment snapshot in `audit_logs.detail`.
+- **U4 — Application cancellation:** an application may be cancelled only until a contract row/contract number has been created. Once a contract exists—including a closed contract—the application is no longer cancellable through the application-cancel path.
 
-Confirm whether a no-payment `overdue` contract is eligible for cancellation, or only `active` is eligible. `closed` and `cancelled` are confirmed ineligible.
+## 7.1 Feature-branch implementation progress
 
-### Gate U2 — Timestamp meaning
+Branch: `phase-b-contract-cancel`
 
-Confirm whether `first_payment_at` stores:
+Implemented in repository code, but not yet migrated, merged, deployed, or database-tested:
 
-- the database time when the first payment event was recorded; or
-- the business `paid_at` date entered by staff, which may be backdated.
+- CS-0 baseline reconciliation SQL;
+- CS-1 immutable `first_payment_at`, payment insert lock, and hard-delete prevention;
+- CS-2 Phase A payment-lock and application-cancel alignment;
+- CS-3 duplicate cancellation, lifecycle, payment, and collection guards;
+- CS-4 dedicated atomic contract-cancel executor and exact Approval Engine dispatch;
+- contract-detail cancellation request UI;
+- application UI alignment;
+- cancelled lifecycle filters in collections, dashboard, and reports;
+- generated Supabase type for `first_payment_at`.
 
-**Recommended:** database-recorded event time because it is immutable evidence. Keep `paid_at` separately as the business date.
+Remaining gates:
 
-### Gate U3 — Cancellation audit snapshot storage
-
-Confirm whether the full installment snapshot is stored in existing `audit_logs` JSON or a dedicated cancellation-history table.
-
-**Recommended initial scope:** existing append-only audit JSON if size and access tests pass; use a dedicated table only if evidence proves the audit row is unsuitable.
-
-### Gate U4 — Application cancel without contract
-
-The closed-contract conflict is confirmed, but the existing behavior for a loan application that never created a contract should be preserved only after confirming its intended eligibility states.
+- CS-0 executed; two payment-without-cash anomalies recorded and classified;
+- CS-1 verified successfully across column, backfill, privilege, trigger, and function gates;
+- CS-2 applied successfully and row-count baseline remained unchanged;
+- CS-2 system-catalog/function verification is blocked by recurring Lovable Database Query HTTP 504;
+- restore query access and prove CS-2 function behavior before applying CS-3;
+- run Phase A and contract-cancel regression suites;
+- verify Lovable build and Supabase `.from()`/`.rpc()`/RLS/Proxy behavior;
+- review diff and evidence before any merge to `main` or deployment.
 
 ## 8. Explicitly not authorized
 
@@ -319,4 +328,61 @@ This plan does not authorize:
 
 The next permissible action is to resolve Gates U1–U4 and approve the exact first implementation slice.
 
-Recommended first implementation authorization, after those answers, is **CS-0 read-only baseline evidence only**. Completion of CS-0 does not authorize CS-1.
+Implementation has started only on the isolated feature branch. The next operational action is CS-0 execution against the demo database. No merge to `main`, migration execution, Lovable deployment, or production cutover is authorized by this document.
+
+
+## 10. Contract Detail Hook-ordering Impact Review — 2026-08-23
+
+### Scope and evidence
+
+- **Repository/branch:** `superchoice-ai/tansub` / `phase-b-contract-cancel`.
+- **Target environment:** Lovable Demo Preview only; `main`, deployment, and PROD are excluded.
+- **Observed regression:** authenticated navigation to `/_authenticated/contracts/$contractId` failed with `Rendered more hooks than during the previous render`.
+- **Confirmed cause:** `useMutation()` was declared after the loading and missing-contract early returns. The first render skipped that Hook; a later data render called it, changing Hook order.
+
+### Dependency and consumer trace
+
+- Direct file: `src/routes/_authenticated/contracts/$contractId.tsx`.
+- Direct consumers: contract-list detail links, contract detail loading/not-found states, cancellation request dialog, React Query caches `contract` and `approvals`.
+- Data/API path retained unchanged: read-only selects from `contracts`, `installments`, `payments`, `approval_requests`, and `audit_logs`; cancellation producer inserts only `approval_requests`.
+- Explicitly unaffected: Approval Engine/executor, Supabase migrations/RLS/proxy/client, payment-void page, application workflow, reports, printing content, and all business eligibility rules.
+
+### Risks and invariants
+
+- The fix must not allow a mutation while contract data is absent.
+- Loading and not-found renders must remain valid.
+- Paid contracts must continue hiding the cancellation action.
+- Eligible `active`/`overdue` contracts with no payment evidence and no pending request may show the action.
+- Pending/rejected requests must not mutate contract, application, installment, payment, cash, or audit business data.
+
+### Approved minimal implementation
+
+Declare the contract value before early returns, declare `useMutation()` unconditionally, and add a mutation-function guard that rejects when the contract is unavailable. Remove the later duplicate contract declaration. No other behavior or file is changed.
+
+### Validation and rollback
+
+- Build/lint validation where available.
+- Lovable authenticated regression: loading/detail page renders without Hook error; paid contract detail opens and has no cancel action; Payment and Approval pages still load.
+- Eligible/pending behavioral cases require an isolated authorized fixture; existing Demo contracts must not be changed to manufacture eligibility.
+- Rollback: revert only the atomic Hook-ordering code commit on `phase-b-contract-cancel`.
+- Acceptance remains fail-closed: no merge/deploy until the full Phase B regression gate passes.
+
+
+## 11. Contract Detail cancelled-schedule presentation decision — 2026-08-23
+
+### Interpretation confirmation
+
+- **Artifact that required confirmation:** CS-5 previously stated that cancelled contract detail could show audit-based schedule history, while Demo regression showed three historical installment rows after the live `installments` rows had been deleted.
+- **Confirmed business meaning:** after approved cancellation, Contract Detail must hide the installment schedule entirely. The audit snapshot remains durable backend evidence only and is not rendered as the current schedule.
+- **Decision owner:** SuperChoice, confirmed 2026-08-23.
+- **Explicit exclusions:** do not delete or alter `audit_logs`; do not change the executor, database schema, print route, payment history, balances, or non-cancelled contract presentation.
+
+### Full-project impact review
+
+- **Direct file:** `src/routes/_authenticated/contracts/$contractId.tsx`.
+- **Direct consumers:** authenticated Contract Detail for active, overdue, closed, and cancelled contracts.
+- **Preserved behavior:** active/overdue/closed schedules remain unchanged; cancellation eligibility, pending/rejected behavior, atomic executor, application reflection, installment deletion, and audit snapshot persistence remain unchanged.
+- **Risks:** accidentally hiding schedules for non-cancelled contracts; removing audit evidence; changing grid/layout behavior; affecting print/history consumers.
+- **Regression plan:** cancelled fixture shows cancelled status with no installment heading/table/rows; SQL still proves zero live installments and one snapshot audit; active fixture still shows its schedule; payment history remains visible; payment_void regression remains unchanged.
+- **Rollback:** revert only the Contract Detail presentation commit on `phase-b-contract-cancel`.
+- **Gate:** Demo Preview regression is required before merge/deploy; `main`, deploy, and PROD remain unauthorized.

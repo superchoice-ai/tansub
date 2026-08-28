@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Check, Plus, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -198,6 +198,17 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const refreshDefaults = async () => {
+    const refreshed = await loanDefaultsQuery.refetch();
+    const latest = refreshed.data?.defaults ?? loanDefaults;
+    setForm((current) => ({
+      ...current,
+      term_months: latest.terms.includes(Number(current.term_months)) ? current.term_months : String(latest.terms[0] ?? 12),
+      interest_rate: String(latest.interest_rate),
+    }));
+    toast.success(`โหลดค่าล่าสุดแล้ว · งวด ${latest.terms.join(", ")} เดือน`);
+  };
 
   const validateStep = (step: number) => {
     if (step === 1) {
@@ -439,7 +450,12 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
 
             {currentStep === 3 && (
               <section className="rounded-xl border p-5">
-                <h3 className="mb-4 text-xl font-semibold">เงื่อนไขสินเชื่อ</h3>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-semibold">เงื่อนไขสินเชื่อ</h3>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void refreshDefaults()} disabled={loanDefaultsQuery.isFetching}>
+                    <RefreshCw className={`size-4 ${loanDefaultsQuery.isFetching ? "animate-spin" : ""}`} /> โหลดค่าล่าสุด
+                  </Button>
+                </div>
                 <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                   <Field label="ราคาประเมินรถ (บาท)" value={form.appraised_value} type="number" onChange={(v) => setForm({ ...form, appraised_value: v })} />
                   <Field label="วงเงินที่ขอ (บาท) *" value={form.requested_amount} type="number" onChange={(v) => setForm({ ...form, requested_amount: v })} />

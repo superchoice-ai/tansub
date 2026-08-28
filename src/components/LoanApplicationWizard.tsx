@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, isValidThaiId, toSatang } from "@/lib/format";
+import { assertCustomerIdentityAvailable, customerDuplicateSaveMessage, normalizeIdentityDigits } from "@/lib/customerIdentity";
 import { VEHICLE_TYPE_LABEL } from "@/lib/labels";
 import { FALLBACK_DEFAULTS, maxLoanByLtv, type LoanDefaults } from "@/lib/loan";
 
@@ -249,20 +250,21 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
       if (customerMode === "new") {
         const parsed = customerSchema.safeParse(customerForm);
         if (!parsed.success) throw new Error(parsed.error.issues[0]!.message);
+        const v = parsed.data;
+        await assertCustomerIdentityAvailable(v.national_id, v.phone);
         const { data: customerCode, error: customerCodeErr } = await supabase.rpc("next_doc_no", {
           _branch: profile.branch_id,
           _doc_type: "CUS",
         });
         if (customerCodeErr) throw customerCodeErr;
-        const v = parsed.data;
         const { data: createdCustomer, error: customerErr } = await supabase
           .from("customers")
           .insert({
             code: customerCode as string,
             branch_id: profile.branch_id,
             full_name: v.full_name,
-            national_id: v.national_id.replace(/\D/g, ""),
-            phone: v.phone,
+            national_id: normalizeIdentityDigits(v.national_id),
+            phone: normalizeIdentityDigits(v.phone),
             email: v.email || null,
             address: v.address || null,
             occupation: v.occupation || null,
@@ -348,7 +350,7 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
       onOpenChange(false);
       void qc.invalidateQueries();
     },
-    onError: (e: Error) => toast.error(e.message.includes("duplicate") ? "ข้อมูลลูกค้านี้มีในระบบแล้ว" : e.message),
+    onError: (e: Error) => toast.error(customerDuplicateSaveMessage(e.message)),
   });
 
   const displayCustomer = customerMode === "existing" ? selectedCustomer : customerForm;

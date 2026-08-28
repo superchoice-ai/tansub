@@ -48,14 +48,14 @@ function ReportViewPage() {
     queryFn: () => runReport(reportId, { from, to, keyword, branchId }),
   });
 
+  useEffect(() => setPage(1), [reportId, from, to, keyword, branchId, pageSize]);
+
   if (!def) return <EmptyState title="ไม่พบรายงานนี้" description="กลับไปเลือกรายงานจากเมนูรายงานผล" />;
 
   const columns = data?.columns ?? [];
   const rows = data?.rows ?? [];
   const totalKeys = data?.totalKeys ?? [];
   const pagination = paginateRows(rows, page, pageSize);
-
-  useEffect(() => setPage(1), [reportId, from, to, keyword, branchId, pageSize]);
 
   return (
     <div>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/labels";
 import { BranchFilterProvider, useBranchFilter } from "@/hooks/useBranchFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 
 interface NavItem {
@@ -91,11 +92,17 @@ function BranchSwitcher() {
 
 function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [environmentLabel, setEnvironmentLabel] = useState<"Prod" | "Dev">("Dev");
   const { profile, branch, roles, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { branchId } = useBranchFilter();
+  const environmentVersion = `${environmentLabel}${import.meta.env.VITE_TANSUB_BUILD_VERSION ?? "000000v.01"}`;
+
+  useEffect(() => {
+    setEnvironmentLabel(window.location.hostname === "tansub.lovable.app" ? "Prod" : "Dev");
+  }, []);
 
 
   const { data: pendingCount } = useQuery({
@@ -222,12 +229,19 @@ function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <Link to="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label="การแจ้งเตือน">
-              <Bell className="size-4" />
-              {!!unread && (
-                <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" />
-              )}
-            </Link>
+            <HoverCard openDelay={250}>
+              <HoverCardTrigger asChild>
+                <Link to="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label="การแจ้งเตือน">
+                  <Bell className="size-4" />
+                  {!!unread && (
+                    <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" />
+                  )}
+                </Link>
+              </HoverCardTrigger>
+              <HoverCardContent align="end" className="w-auto px-3 py-2 text-xs font-medium">
+                {environmentVersion}
+              </HoverCardContent>
+            </HoverCard>
           </div>
         </header>
         <main className="print-area flex-1 p-4 lg:p-6">{children}</main>

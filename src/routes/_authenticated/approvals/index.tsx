@@ -99,9 +99,12 @@ function ApprovalsPage() {
       setNote("");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["approvals"] }),
+        qc.invalidateQueries({ queryKey: ["approval-application-details"] }),
         qc.invalidateQueries({ queryKey: ["applications"] }),
         qc.invalidateQueries({ queryKey: ["customers"] }),
         qc.invalidateQueries({ queryKey: ["contracts"] }),
+        qc.invalidateQueries({ queryKey: ["contract"] }),
+        qc.invalidateQueries({ queryKey: ["approved-apps"] }),
       ]);
     },
     onError: (e: Error) => toast.error(e.message),

@@ -1,3 +1,20 @@
+<!-- AI ENGINEERING COPILOT — MANDATORY START HERE -->
+> [!CAUTION]
+> **Every human and AI contributor MUST read `AI_ENGINEERING_COPILOT.md` BEFORE reasoning, planning, editing, committing, merging, publishing, deploying, testing, or taking any other action in this repository.**
+>
+> `AI_ENGINEERING_COPILOT.md` is mandatory project governance. It defines the AI role, scope/authorization boundaries, incident-status reporting, pre-merge hygiene checks, and fail-closed rules.
+>
+> **AI role:** AI is an **AI Engineering Copilot**. It assists; it does not independently expand scope or make release decisions.
+>
+> **Explicit authorization required:** Do NOT Merge, Publish, Deploy, Commit to `main`, modify production, or expand scope unless the authorized owner explicitly requests that exact action.
+>
+> **Incident rule:** If an abnormal tool/provider condition occurs (for example `Connection interrupted. Waiting for the complete answer`), check the relevant provider's **official status page**, record time/timezone and evidence, then report completed / in-progress-unknown / not-done work and the exact next step after recovery.
+>
+> **Pre-main hygiene:** Before any merge to `main` or direct commit to `main`, verify no PT-TEST/PB-TEST fixtures, temporary/debug data, secrets, generated artifacts, unfinished scope, or other test residue is being carried forward.
+>
+> **Do not skip this file because another document appears complete.** Read `AI_ENGINEERING_COPILOT.md` first, then continue with the repository governance below.
+<!-- AI ENGINEERING COPILOT — MANDATORY END -->
+
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting

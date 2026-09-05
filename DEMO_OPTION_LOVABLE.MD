@@ -349,3 +349,39 @@ rg -n --hidden --glob '!.git' --glob '!node_modules' \
 | LINE 2-way | production integrations | study/demo implementation | webhook/signature/mapping/loop | threat test + disable | SAFE / REVIEW / DO NOT MERGE |
 
 ถ้า evidence ไม่ครบ ให้ใช้ `DO NOT MERGE`
+
+
+---
+
+# Mandatory Reusable Implementation Reference Gate
+
+> [!CAUTION]
+> เอกสารข้อกำหนดเพียงอย่างเดียวไม่สามารถรับประกันว่าจะไม่เกิด impact ได้ ก่อนพัฒนา Assistant, MCP, external AI integration หรือ promote ระหว่าง Main ↔ Demo ทุกคนและทุก AI ต้องอ่านและใช้ Reference ทั้งสองฉบับ:
+>
+> 1. [`DEMO_OPTION_ASSISTANT_REFERENCE.MD`](./DEMO_OPTION_ASSISTANT_REFERENCE.MD)
+> 2. [`DEMO_OPTION_MCP_REFERENCE.MD`](./DEMO_OPTION_MCP_REFERENCE.MD)
+
+## กฎบังคับ
+
+- ห้ามนำ execution log ต้นฉบับทั้งสองไฟล์เข้า repository หรือคัดลอกโค้ดจาก log โดยตรง
+- ต้องเริ่มจาก source code ปัจจุบัน แล้วใช้ Reference เป็น reusable baseline
+- ต้องกรอก Project Adaptation Record ของทั้งสอง Reference ก่อน implementation
+- ต้องเปรียบเทียบ file layout, package/runtime, routes, schema, generated types, role/branch rules, RLS, Auth/OAuth, environment bindings และ external callbacks
+- ต้องตรวจว่า Assistant กับ MCP ใช้ scope/tool/domain layer ที่สอดคล้องกันและไม่มี privilege gap
+- ก่อน Main → Demo หรือ Demo → Main ต้องตรวจ full diff เทียบ Reference และ target baseline
+- ต้องรัน build/typecheck, Auth/OAuth tests, RLS role/branch matrix และ regression ของ target
+- Reference ไม่แทน PR, owner approval, security review, data review, deploy approval หรือ production verification
+- ถ้า Reference กับ source ปัจจุบันขัดกัน ให้หยุดวิเคราะห์ impact และถามเจ้าของ ห้ามบังคับ source ให้เหมือน Reference โดยอัตโนมัติ
+
+## เกณฑ์หยุด
+
+พบข้อใดข้อหนึ่งให้ผล `DO NOT MERGE`:
+
+- raw execution log หรือโค้ดกลางทางถูกนำมาใช้
+- duplicate route/import/component/query/plugin
+- schema/table/status/role ถูกสมมุติ
+- Assistant หรือ MCP ใช้ service-role กับ user data
+- RLS/role/branch matrix ยังไม่ผ่าน
+- OAuth issuer/audience/callback ไม่ตรง target
+- old project ref, Demo secret/mock/test data ติดไป Production
+- build/regression/evidence/rollback ไม่ครบ

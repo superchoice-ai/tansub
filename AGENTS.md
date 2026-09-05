@@ -1,3 +1,12 @@
+<!-- CONSTITUTION OF AI — MANDATORY START -->
+> [!CAUTION]
+> **Every human and AI contributor MUST read [`CONSTITUTION_OF_AI.md`](./CONSTITUTION_OF_AI.md) in full before reasoning, planning, development, testing, committing, merging, publishing, deploying, changing data, or taking any repository action.**
+>
+> `main` is the protected system baseline. Before any non-main → main integration, preserve the latest-main versions of `CONSTITUTION_OF_AI.md`, `AGENTS.md`, `AI_ENGINEERING_COPILOT.md`, and every applicable security/Main ↔ Demo/reusable reference. Review governance-file diff separately and record `GOVERNANCE PRESERVED`; missing, deleted, renamed, stale-overwritten, or weakened governance means `DO NOT MERGE`.
+>
+> Repository-specific rules remain mandatory. Where rules differ, follow the stricter rule unless the authorized owner explicitly resolves the conflict.
+<!-- CONSTITUTION OF AI — MANDATORY END -->
+
 <!-- LOVABLE AND PROD-DEMO GOVERNANCE — MANDATORY START -->
 > [!CAUTION]
 > **Every human and AI contributor MUST read `Lovable.MD` in full before reasoning, planning, development, testing, committing, merging, publishing, deploying, cloning, remixing, copying code, changing environment bindings, or changing backend/database state.**

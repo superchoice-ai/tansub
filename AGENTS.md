@@ -1,3 +1,10 @@
+<!-- LOVABLE GOVERNANCE — MANDATORY START HERE -->
+> [!CAUTION]
+> **This repository uses or integrates with Lovable. Every human and AI contributor MUST read `Lovable.MD` in full before reasoning, planning, development, testing, committing, merging, publishing, deploying, changing environment bindings, or changing database/backend state.**
+>
+> `Lovable.MD` is mandatory governance for Lovable Remix, FE/BE/DB project separation, secrets rebind, Auth/RLS/functions, validation, evidence, and rollback. If it conflicts with another rule, follow the stricter rule and stop for owner confirmation when interpretation is unclear.
+<!-- LOVABLE GOVERNANCE — MANDATORY END -->
+
 <!-- AI ENGINEERING COPILOT — MANDATORY START HERE -->
 > [!CAUTION]
 > **Every human and AI contributor MUST read `AI_ENGINEERING_COPILOT.md` BEFORE reasoning, planning, editing, committing, merging, publishing, deploying, testing, or taking any other action in this repository.**

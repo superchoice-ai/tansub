@@ -1,3 +1,10 @@
+<!-- LOVABLE AND PROD-DEMO GOVERNANCE — MANDATORY START -->
+> [!CAUTION]
+> **Every human and AI contributor MUST read `Lovable.MD` in full before reasoning, planning, development, testing, committing, merging, publishing, deploying, cloning, remixing, copying code, changing environment bindings, or changing backend/database state.**
+>
+> `Lovable.MD` is mandatory governance for Lovable projects, Remix FE/BE/DB separation, and every Production ↔ Demo code movement. Production-to-Demo and Demo-to-Production transfers require a PR even for a solo project. If wording or workflow implies demo/remix/clone/copy but source or target status is unclear, STOP and obtain owner confirmation before action.
+<!-- LOVABLE AND PROD-DEMO GOVERNANCE — MANDATORY END -->
+
 <!-- AI ENGINEERING COPILOT — MANDATORY START HERE -->
 > [!CAUTION]
 > **Every human and AI contributor MUST read `AI_ENGINEERING_COPILOT.md` BEFORE reasoning, planning, editing, committing, merging, publishing, deploying, testing, or taking any other action in this repository.**

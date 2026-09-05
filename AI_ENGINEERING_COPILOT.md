@@ -1,3 +1,10 @@
+<!-- CONSTITUTIONAL GOVERNANCE — MANDATORY START -->
+> [!CAUTION]
+> Read `CONSTITUTION_OF_AI.md` first. This file implements the Constitution for engineering work and cannot weaken it.
+>
+> Before any non-main → main integration, verify the latest-main governance set is preserved: `CONSTITUTION_OF_AI.md`, `AGENTS.md`, `AI_ENGINEERING_COPILOT.md`, plus applicable security/Main ↔ Demo/reusable references. Review their diff separately. Record `GOVERNANCE PRESERVED` or stop with `DO NOT MERGE`.
+<!-- CONSTITUTIONAL GOVERNANCE — MANDATORY END -->
+
 # AI Engineering Copilot — Mandatory Governance
 
 ## 1. Read governance before action

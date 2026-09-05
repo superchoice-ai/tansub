@@ -386,3 +386,8 @@ bunx tsgo --noEmit
 - สถานะ “แก้แล้ว” ที่ยังไม่ผ่าน build/regression
 
 ใช้ไฟล์นี้เป็น baseline แล้วปรับจาก source code ปัจจุบันเท่านั้น
+
+
+## After-Remix dependency
+
+ถ้า Assistant อยู่ใน Remix/Clone/Demo หรือมีการเปลี่ยน Backend/Database ต้องผ่าน `AFTER_REMIX_BE_DB_REFERENCE.MD` ก่อนใช้ Reference นี้ โดยยืนยันว่า authenticated server action, AI environment, user-scoped DB client และ branch scope ชี้ target project ใหม่

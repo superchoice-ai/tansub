@@ -439,3 +439,8 @@ Stale project ref, service-role use, duplicate auth route/plugin, unverified RLS
 ห้าม commit execution log ต้นฉบับหรือ copy โค้ดตรง ๆ เพราะอาจมี duplicated consent/auth blocks, incomplete edits, project-specific schema, unsafe env inspection, stale package version หรือ code ที่ยังไม่ผ่าน build/E2E
 
 ใช้ source ปัจจุบัน + adaptation record + reference นี้เท่านั้น
+
+
+## After-Remix dependency
+
+ถ้า MCP อยู่ใน Remix/Clone/Demo หรือมีการเปลี่ยน Backend/Database ต้องผ่าน `AFTER_REMIX_BE_DB_REFERENCE.MD` ก่อนใช้ Reference นี้ โดยยืนยัน OAuth issuer/audience, consent callback, MCP endpoint, publishable key, user token, RLS และ DB ชี้ target project ใหม่ และ old project ไม่ได้รับ tool-call test writes/events

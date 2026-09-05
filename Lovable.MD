@@ -569,3 +569,10 @@ tail -30 /tmp/observability/build-errors.log 2>/dev/null || echo "no log"
 - [`DEMO_OPTION_MCP_REFERENCE.MD`](./DEMO_OPTION_MCP_REFERENCE.MD)
 
 เอกสารอย่างเดียวไม่รับประกันว่าไม่มี impact Reference เป็น reusable baseline แต่ต้องปรับเทียบ source ปัจจุบันและตรวจ full diff, schema, Auth/RLS, role/branch, environment, build และ regression ทุกครั้ง ห้ามนำ raw execution logs เข้า repoหรือคัดลอกโค้ดกลางทางโดยตรง
+
+
+## Mandatory After-Remix FE/BE/DB Reference
+
+เมื่อมี Remix, Clone, Copy project/repository, แยก Demo, เปลี่ยน Lovable project หรือเปลี่ยน Backend/Database ต้องอ่านและใช้ [`AFTER_REMIX_BE_DB_REFERENCE.MD`](./AFTER_REMIX_BE_DB_REFERENCE.MD) ก่อนพัฒนา ทดสอบ PR merge publish หรือ deploy
+
+Reference นี้บังคับตรวจ FE build-time, BE runtime, migration target, Auth/schema/trigger/RLS/grants, Assistant/MCP, Storage/functions/webhooks/jobs/integrations, old-project negative check, new-project positive check, regression และ rollback เอกสารอย่างเดียวไม่รับประกันว่าไม่มี impact

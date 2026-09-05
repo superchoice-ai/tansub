@@ -371,3 +371,8 @@ If ownership or lineage cannot be proven, STOP and request clarification. Never 
 
 This separation is mandatory because Lovable uses the production published URL and project preview URL as the practical PROD/Dev boundary.
 <!-- LOVABLE PROD/DEV BRANCH SEPARATION — END -->
+
+<!-- REUSABLE IMPLEMENTATION REFERENCES — MANDATORY -->
+> [!CAUTION]
+> For AI Assistant, MCP, external AI integrations, Demo options, or Production ↔ Demo promotion, every human and AI MUST read `DEMO_OPTION_ASSISTANT_REFERENCE.MD` and `DEMO_OPTION_MCP_REFERENCE.MD` before implementation or merge. Raw execution logs must not be committed or copied as implementation. Compare current source against both references and verify diff, schema, Auth/RLS, role/branch scope, build, regression, and rollback.
+<!-- REUSABLE IMPLEMENTATION REFERENCES — END -->

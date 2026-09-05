@@ -559,3 +559,13 @@ tail -30 /tmp/observability/build-errors.log 2>/dev/null || echo "no log"
 - Option 1, 2, 2.1 และ 2.2 ต้องผ่าน Auth/RLS/role/branch/consent และ acceptance ที่กำหนด
 - Option 2.3 Project ↔ LINE เป็น `PLANNED / UNDER STUDY` จนกว่าเจ้าของจะยืนยัน scope
 - การ promote option ระหว่าง Demo และ Production ต้องผ่าน PR และ conflict report เสมอ
+
+
+## Mandatory Reference Code Requirement
+
+เมื่อ scope เกี่ยวข้องกับ AI Assistant, MCP, external AI client, option/top-up/plugin/integration/subscription หรือการย้าย implementation ระหว่าง Production ↔ Demo ต้องอ่านและใช้:
+
+- [`DEMO_OPTION_ASSISTANT_REFERENCE.MD`](./DEMO_OPTION_ASSISTANT_REFERENCE.MD)
+- [`DEMO_OPTION_MCP_REFERENCE.MD`](./DEMO_OPTION_MCP_REFERENCE.MD)
+
+เอกสารอย่างเดียวไม่รับประกันว่าไม่มี impact Reference เป็น reusable baseline แต่ต้องปรับเทียบ source ปัจจุบันและตรวจ full diff, schema, Auth/RLS, role/branch, environment, build และ regression ทุกครั้ง ห้ามนำ raw execution logs เข้า repoหรือคัดลอกโค้ดกลางทางโดยตรง

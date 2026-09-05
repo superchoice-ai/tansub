@@ -376,3 +376,9 @@ This separation is mandatory because Lovable uses the production published URL a
 > [!CAUTION]
 > For AI Assistant, MCP, external AI integrations, Demo options, or Production ↔ Demo promotion, every human and AI MUST read `DEMO_OPTION_ASSISTANT_REFERENCE.MD` and `DEMO_OPTION_MCP_REFERENCE.MD` before implementation or merge. Raw execution logs must not be committed or copied as implementation. Compare current source against both references and verify diff, schema, Auth/RLS, role/branch scope, build, regression, and rollback.
 <!-- REUSABLE IMPLEMENTATION REFERENCES — END -->
+
+
+<!-- AFTER REMIX BE DB REFERENCE — MANDATORY -->
+> [!CAUTION]
+> For any Remix, Clone, copied project/repository, Demo separation, Lovable project switch, or Backend/Database switch, every human and AI MUST read `AFTER_REMIX_BE_DB_REFERENCE.MD` before development or Main ↔ Demo comparison. Verify FE/BE project identity, migration target, schema, Auth/RLS, grants, external resources, old/new write evidence, regression, and rollback. Documentation alone is not proof of zero impact.
+<!-- AFTER REMIX BE DB REFERENCE — END -->

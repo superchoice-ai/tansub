@@ -277,6 +277,23 @@ BEGIN
 END $$;
 ```
 
+หาก architecture ยืนยันว่า `service_role` ต้องเป็น server/admin authority สำหรับทุกฟังก์ชันใน `public` จริง จึงใช้คำสั่งนี้ได้หลัง impact review (ห้ามใช้เป็นค่า default ใน repo อื่น):
+
+```sql
+DO $
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure::text AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+  LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+  END LOOP;
+END $;
+```
+
 จากนั้น:
 
 - revoke `authenticated` จาก trigger/internal helpers

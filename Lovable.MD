@@ -546,3 +546,16 @@ tail -30 /tmp/observability/build-errors.log 2>/dev/null || echo "no log"
 - บันทึก source/target SHA, PR, วิธี resolve conflict และผลทดสอบ
 - ลบ source branch ได้หลัง merge สำเร็จและตรวจ acceptance แล้ว
 - PR ที่ merge/closed แล้วเป็น audit record และไม่ควรพยายามลบประวัติ
+
+
+---
+
+# กฎต่อเนื่อง — Demo Options
+
+เมื่อ repository/project/branch นี้มีหรืออาจมี option เสริม, top-up, plugin, integration, subscription, AI Assistant, MCP, external AI client หรือ LINE 2-way ต้องอ่าน [`DEMO_OPTION_LOVABLE.MD`](./DEMO_OPTION_LOVABLE.MD) ให้ครบก่อน reasoning, planning, development, copy, remix, clone, PR, merge, publish หรือ deploy
+
+- ไฟล์ดังกล่าวเป็นส่วนหนึ่งของกฎ Production ↔ Demo ในไฟล์นี้
+- การมีสเปกหรือโค้ดตัวอย่างไม่ใช่ authorization ให้พัฒนา
+- Option 1, 2, 2.1 และ 2.2 ต้องผ่าน Auth/RLS/role/branch/consent และ acceptance ที่กำหนด
+- Option 2.3 Project ↔ LINE เป็น `PLANNED / UNDER STUDY` จนกว่าเจ้าของจะยืนยัน scope
+- การ promote option ระหว่าง Demo และ Production ต้องผ่าน PR และ conflict report เสมอ

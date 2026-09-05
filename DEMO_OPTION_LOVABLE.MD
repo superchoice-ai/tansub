@@ -385,3 +385,10 @@ rg -n --hidden --glob '!.git' --glob '!node_modules' \
 - OAuth issuer/audience/callback ไม่ตรง target
 - old project ref, Demo secret/mock/test data ติดไป Production
 - build/regression/evidence/rollback ไม่ครบ
+
+
+## Mandatory After-Remix Reference Gate
+
+หาก Demo option เกิดจาก Remix/Clone/Copy หรือใช้ Backend/Database แยกจาก Production ต้องอ่าน [`AFTER_REMIX_BE_DB_REFERENCE.MD`](./AFTER_REMIX_BE_DB_REFERENCE.MD) ร่วมกับ Assistant/MCP References ก่อน implementation และก่อน Main ↔ Demo PR
+
+ต้องเปรียบเทียบ project identity, FE/BE environment, migration config, schema, Auth/RLS, functions/grants, external resources, old/new project write evidence และ regression หากยังมี `UNKNOWN` ให้ `DO NOT MERGE`

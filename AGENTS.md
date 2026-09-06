@@ -391,3 +391,68 @@ This separation is mandatory because Lovable uses the production published URL a
 > [!CAUTION]
 > For any Remix, Clone, copied project/repository, Demo separation, Lovable project switch, or Backend/Database switch, every human and AI MUST read `AFTER_REMIX_BE_DB_REFERENCE.MD` before development or Main ↔ Demo comparison. Verify FE/BE project identity, migration target, schema, Auth/RLS, grants, external resources, old/new write evidence, regression, and rollback. Documentation alone is not proof of zero impact.
 <!-- AFTER REMIX BE DB REFERENCE — END -->
+
+<!-- SUPERCHOICE AI PLATFORM CROSS-SYSTEM SCOPE GATE — BEGIN -->
+# CRITICAL RULE — SuperChoice AI Platform Cross-System Scope and Confirmation Gate
+
+> [!CAUTION]
+> SuperChoice AI is an AI Platform with n8n as a central orchestration layer. A change in one integration may affect multiple projects, tenants, subscribers, branches, environments, credentials, webhooks, workflows, or shared services. This gate is mandatory before development or any mutating action.
+
+## 1. Ambiguous target system means STOP
+
+- When a request, discussion, requirement, incident, or code context involves multiple systems and the authorized owner has not explicitly identified the exact system to develop or change, STOP and ask the owner to confirm the target system before development or any mutating action.
+- Never select the target system by inference, technical convenience, repository context, architecture convention, prior work, or likelihood.
+- Mentioning or discussing a system is not authorization to develop or change that system.
+- A general instruction such as “continue,” “fix it,” “make it work,” or “do this” does not resolve an unclear target system.
+- Until confirmation is received, only the minimum necessary read-only inspection is allowed.
+
+## 2. Exact-system authorization and isolation
+
+Before development or any mutating action, record and obtain explicit owner confirmation of:
+
+- the exact target system;
+- the exact repository, project, workflow, worker, channel, branch, environment, tenant/subscriber, and files or resources in scope;
+- the exact allowed actions;
+- every system and resource explicitly excluded from change.
+
+Develop or mutate only the confirmed target and scope. Do not develop, modify, configure, deploy, activate, publish, test through mutation, or “prepare” changes in any other system. Dependencies and touchpoints may be inspected read-only when necessary, but must remain unchanged unless the owner separately authorizes them.
+
+## 3. Mandatory cross-system touchpoint gate
+
+If a request, discussion, architecture, configuration, or code has any touchpoint with one or more of these systems—**n8n, Lovable, LINE, or Cloudflare**—before development or any mutating action:
+
+1. identify and verify the exact systems, projects, workflows, endpoints, webhooks, proxies/workers, credentials/secrets references, branches, environments, tenants/subscribers, and data paths involved;
+2. trace upstream and downstream impact across all four systems, including shared n8n orchestration and other SuperChoice AI projects;
+3. distinguish confirmed facts from unknowns and assumptions;
+4. obtain explicit owner confirmation of the exact system to change and the allowed scope;
+5. keep every unconfirmed system read-only and unchanged.
+
+A touchpoint with one system does not authorize changes in the other three. Existing access, credentials, tools, code, workflow references, shared endpoints, or technical capability never count as authorization.
+
+If identity, ownership, routing, tenant/subscriber boundary, environment, shared dependency, impact, or scope is unclear, the result is `NO-GO`: do not develop or mutate anything; ask the owner.
+
+## 4. n8n prohibition: no test/manual artifacts
+
+Unless the authorized owner explicitly requests the exact n8n artifact and action, do **not** create, duplicate, import, modify, run, activate, publish, or delete:
+
+- test nodes or temporary/debug nodes;
+- Manual Trigger nodes or other manual nodes;
+- test workflows, manual workflows, temporary workflows, diagnostic workflows, shadow workflows, or cloned workflows;
+- test branches or alternate execution paths inside a workflow;
+- test data, mock payload paths, or helper artifacts that mutate n8n or connected systems.
+
+Read-only inspection of existing n8n workflows is allowed only when it is necessary for the confirmed task. Testing must use the owner-confirmed real path and method; never invent a test node, manual node, manual workflow, or alternate test path. If the testing method is not explicitly confirmed, STOP and ask before testing.
+
+## 5. Fail-closed enforcement
+
+If target-system confirmation or cross-system verification is missing, ambiguous, contradictory, or incomplete:
+
+- do not write code;
+- do not edit repositories or external systems;
+- do not create branches or pull requests;
+- do not change workflows, nodes, webhooks, routes, callbacks, workers, environments, credentials, secrets, data, or deployments;
+- do not take action in a different system as a workaround;
+- report the ambiguity and wait for explicit owner confirmation.
+
+This gate supplements all stricter repository governance. It never weakens PR, branch, production, security, RLS, testing, impact-review, or deployment rules.
+<!-- SUPERCHOICE AI PLATFORM CROSS-SYSTEM SCOPE GATE — END -->

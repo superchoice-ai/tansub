@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/labels";
 import { BranchFilterProvider, useBranchFilter } from "@/hooks/useBranchFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { EnvironmentVersionInfo } from "@/components/EnvironmentVersionInfo";
 
 
 interface NavItem {
@@ -92,18 +92,11 @@ function BranchSwitcher() {
 
 function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [environmentLabel, setEnvironmentLabel] = useState<"Prod" | "Dev">("Dev");
   const { profile, branch, roles, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { branchId } = useBranchFilter();
-  const environmentVersion = `${environmentLabel}${import.meta.env.VITE_TANSUB_BUILD_VERSION ?? "000000v.01"}`;
-
-  useEffect(() => {
-    setEnvironmentLabel(window.location.hostname === "tansub.lovable.app" ? "Prod" : "Dev");
-  }, []);
-
 
   const { data: pendingCount } = useQuery({
     queryKey: ["approvals-pending-count", branchId],
@@ -155,7 +148,7 @@ function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">ธารทรัพย์</p>
-            <p className="truncate text-[11px] text-sidebar-foreground/70">สินเชื่อจำนำเล่มทะเบียน</p>
+            <p className="flex items-center gap-1 text-[11px] text-sidebar-foreground/70">\n              <span className="truncate">สินเชื่อจำนำเล่มทะเบียน</span>\n              <EnvironmentVersionInfo className="text-sidebar-foreground/80" />\n            </p>
           </div>
           <button className="ml-auto lg:hidden" onClick={() => setOpen(false)} aria-label="ปิดเมนู">
             <X className="size-5" />
@@ -229,19 +222,12 @@ function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <HoverCard openDelay={250}>
-              <HoverCardTrigger asChild>
-                <Link to="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label="การแจ้งเตือน">
-                  <Bell className="size-4" />
-                  {!!unread && (
-                    <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" />
-                  )}
-                </Link>
-              </HoverCardTrigger>
-              <HoverCardContent align="end" className="w-auto px-3 py-2 text-xs font-medium">
-                {environmentVersion}
-              </HoverCardContent>
-            </HoverCard>
+            <Link to="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label="การแจ้งเตือน">
+              <Bell className="size-4" />
+              {!!unread && (
+                <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive" />
+              )}
+            </Link>
           </div>
         </header>
         <main className="print-area flex-1 p-4 lg:p-6">{children}</main>

@@ -6,6 +6,7 @@ import {
   blockBusinessMutations,
   waitForPendingBusinessMutations,
 } from "@/lib/active-session";
+import { checkCurrentUserActive } from "@/lib/active-user-check";
 import type { AppRole } from "@/lib/labels";
 
 export interface Branch {
@@ -94,12 +95,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const checkActive = async (): Promise<boolean> => {
-      const { data: active, error } = await supabase.rpc("is_current_user_active");
-      if (error) return true; // Database RLS remains the final fail-closed guard.
-      if (active !== true) {
+      const result = await checkCurrentUserActive();
+
+      if (result.status === "unavailable") {
+        // Keep the session so a transient OAuth/JWT/API race can recover without
+        // forcing the user through another login. Mutations remain fail-closed.
+        blockBusinessMutations();
+        console.error("[Auth] Active-user check unavailable", result.error);
+        return false;
+      }
+
+      if (result.status === "inactive") {
         await forceInactiveLogout();
         return false;
       }
+
       allowBusinessMutations();
       return true;
     };

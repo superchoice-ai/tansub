@@ -5,20 +5,33 @@ import {
   blockBusinessMutations,
   waitForPendingBusinessMutations,
 } from "@/lib/active-session";
+import {
+  checkCurrentUserActive,
+  waitForAuthenticatedSession,
+} from "@/lib/active-user-check";
 import { AppLayout } from "@/components/AppLayout";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
+    const sessionResult = await waitForAuthenticatedSession();
+    if (!sessionResult.session) throw redirect({ to: "/auth" });
+
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
 
-    const { data: active, error: activeError } = await supabase.rpc("is_current_user_active");
-    if (activeError || active !== true) {
+    const activeResult = await checkCurrentUserActive();
+
+    if (activeResult.status === "inactive") {
       blockBusinessMutations();
       await waitForPendingBusinessMutations();
       await supabase.auth.signOut();
       throw redirect({ to: "/auth", search: { inactive: "1" } });
+    }
+
+    if (activeResult.status === "unavailable") {
+      blockBusinessMutations();
+      throw activeResult.error;
     }
 
     allowBusinessMutations();

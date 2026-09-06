@@ -18,7 +18,7 @@ export function EnvironmentVersionInfo({ className }: { className?: string }) {
         <button
           type="button"
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-full align-middle outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex size-6 shrink-0 items-center justify-center rounded-full align-middle outline-none hover:bg-current/10 focus-visible:ring-2 focus-visible:ring-ring",
             className,
           )}
           aria-label="ดูเวอร์ชันระบบ"

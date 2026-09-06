@@ -148,7 +148,10 @@ function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">ธารทรัพย์</p>
-            <p className="flex items-center gap-1 text-[11px] text-sidebar-foreground/70">\n              <span className="truncate">สินเชื่อจำนำเล่มทะเบียน</span>\n              <EnvironmentVersionInfo className="text-sidebar-foreground/80" />\n            </p>
+            <p className="flex items-center gap-1 text-[11px] text-sidebar-foreground/70">
+              <span className="truncate">สินเชื่อจำนำเล่มทะเบียน</span>
+              <EnvironmentVersionInfo className="text-sidebar-foreground/80" />
+            </p>
           </div>
           <button className="ml-auto lg:hidden" onClick={() => setOpen(false)} aria-label="ปิดเมนู">
             <X className="size-5" />

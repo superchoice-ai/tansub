@@ -127,7 +127,10 @@ function AuthPage() {
             ธส
           </div>
           <h1 className="text-2xl font-bold">ธารทรัพย์</h1>
-          <p className="inline-flex items-center justify-center gap-1 text-sm opacity-80">\n            ระบบสินเชื่อจำนำเล่มทะเบียนแลกเงินสด\n            <EnvironmentVersionInfo className="text-primary-foreground/90" />\n          </p>
+          <p className="inline-flex items-center justify-center gap-1 text-sm opacity-80">
+            ระบบสินเชื่อจำนำเล่มทะเบียนแลกเงินสด
+            <EnvironmentVersionInfo className="text-primary-foreground/90" />
+          </p>
         </div>
 
         <Card>

@@ -456,3 +456,90 @@ If target-system confirmation or cross-system verification is missing, ambiguous
 
 This gate supplements all stricter repository governance. It never weakens PR, branch, production, security, RLS, testing, impact-review, or deployment rules.
 <!-- SUPERCHOICE AI PLATFORM CROSS-SYSTEM SCOPE GATE — END -->
+
+
+<!-- SUPERCHOICE AI IDENTITY NAMESPACE & REUSE-FIRST RULE — START -->
+# SuperChoice AI Identity Namespace & Reuse-First Rule
+
+This rule is mandatory for all human and AI development, investigation, troubleshooting, architecture, planning, and implementation work in this repository.
+
+## 1. Never communicate an ID without its system namespace
+
+SuperChoice AI spans multiple systems. Terms such as UUID, user ID, account ID, project ID, workflow ID, branch ID, tenant ID, LINE user ID, secret key, primary key, foreign key, unique key, token subject, and similar identifiers are ambiguous unless their owning system and storage location are stated.
+
+Whenever an identifier is requested, referenced, compared, copied, mapped, debugged, or returned, always identify at least:
+- the owning system/platform;
+- the project/application/tenant where applicable;
+- the database/service/storage location where applicable;
+- the table/collection/object/field where known;
+- the semantic meaning of the identifier.
+
+Bad:
+- "<UUID ของบัญชี [ชื่อ] ที่ล็อกอินอยู่>"
+- "ใช้ user_id นี้"
+- "เอา ID จาก profile"
+
+Required:
+- "<UUID ของบัญชี [ชื่อ] ที่ล็อกอินอยู่ในฐานข้อมูล Car4Cash / Lovable project>"
+- "<LINE user ID จาก LINE Messaging webhook event.source.userId>"
+- "<Car4Cash user UUID จาก public.profiles.id ใน Lovable Cloud database>"
+- "<GitHub repository ID ของ superchoice-ai/tansub>"
+- "<n8n workflow ID ของ workflow [ชื่อ] ใน SuperChoice AI n8n Cloud>"
+
+If two systems use values that look similar or are both UUIDs, never imply they are interchangeable. State the mapping explicitly, for example:
+LINE user ID -> Car4Cash/Lovable user UUID -> profile/role/branch authorization.
+
+If the identifier source is not verified, say exactly which system/location still needs verification before development or data mutation.
+
+## 2. Unique keys and identity mapping must be explicit
+
+Before designing joins, mappings, authentication links, webhook identity resolution, authorization, deduplication, routing, or external integrations, explicitly identify:
+- source-system key;
+- destination-system key;
+- uniqueness scope;
+- cardinality (1:1, 1:N, N:M);
+- where the mapping is stored;
+- which system is the source of truth.
+
+Do not invent a new mapping table, key, UUID, or synchronization process until checking whether an existing key/mapping already exists in SuperChoice AI.
+
+## 3. Reuse-first architecture is mandatory
+
+When a development question touches or resembles capabilities already present in SuperChoice AI, inspect and reuse the existing platform before proposing new architecture.
+
+Relevant touchpoints include, but are not limited to:
+- LINE / messaging / chat tools;
+- Lovable / application backend / database / auth;
+- n8n / workflow / automation / orchestration;
+- GitHub / version control / repository governance;
+- Cloudflare / worker / proxy / network / security;
+- MCP / tools / agents / AI routing;
+- webhook / callback / API gateway;
+- identity / role / branch / tenant authorization;
+- notification / push / reply integrations.
+
+Also apply the same principle to any new technology with an equivalent function, such as another chat tool, web tool, workflow/automation platform, version-control system, proxy, gateway, or security layer.
+
+Before estimating or proposing development:
+1. inventory what SuperChoice AI already has for the same capability;
+2. verify current implementation and touchpoints in the relevant systems;
+3. identify the smallest missing gap;
+4. extend the existing path with the minimum necessary change;
+5. only propose a new subsystem when reuse is demonstrably insufficient.
+
+## 4. Do not over-design from an isolated project view
+
+Never assume the current repository is a standalone system if the request touches SuperChoice AI platform capabilities.
+
+Example:
+If LINE already has webhook handling, X-Line-Signature validation through Cloudflare, LINE user mapping, Lovable authorization, MCP tools, AI routing, n8n orchestration, and LINE Messaging API support, do not propose rebuilding an end-to-end 1-way/2-way messaging platform from scratch. First trace the existing path and add only the missing glue, route, reply call, mapping, or authorization step.
+
+Development estimates must be based on the verified missing gap, not on rebuilding components that already exist elsewhere in SuperChoice AI.
+
+## 5. Cross-system confirmation still applies
+
+This reuse-first rule does not override the existing cross-system scope gate.
+
+If work may modify more than one system, identify the exact systems and confirm the intended development target before writing or changing code. Read-only inspection across related SuperChoice AI systems is allowed when necessary to understand existing reusable capability, but mutation must remain within the owner-confirmed scope.
+
+<!-- SUPERCHOICE AI IDENTITY NAMESPACE & REUSE-FIRST RULE — END -->

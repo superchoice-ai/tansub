@@ -1542,7 +1542,8 @@ export type Database = {
         Returns: boolean
       }
       is_hq: { Args: { _user_id: string }; Returns: boolean }
-      is_manager: { Args: never; Returns: boolean }\n      is_current_user_active: { Args: never; Returns: boolean }
+      is_manager: { Args: never; Returns: boolean }
+      is_current_user_active: { Args: never; Returns: boolean }
       list_integration_secrets: {
         Args: never
         Returns: {

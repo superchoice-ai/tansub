@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { EnvironmentVersionInfo } from "@/components/EnvironmentVersionInfo";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -20,6 +21,9 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "ระบบสินเชื่อจำนำเล่มทะเบียนแลกเงินสด สำหรับพนักงานและผู้บริหาร" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { inactive?: string } => ({
+    inactive: search["inactive"] === "1" ? "1" : undefined,
+  }),
   component: AuthPage,
 });
 
@@ -28,6 +32,7 @@ const passwordSchema = z.string().min(8, { message: "รหัสผ่านต
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { inactive } = Route.useSearch();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +41,7 @@ function AuthPage() {
   useEffect(() => {
     const err = new URLSearchParams(window.location.search).get("line_error");
     if (err) toast.error(err);
+    if (inactive === "1") toast.error("บัญชีผู้ใช้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ");
     void supabase.auth.getSession().then(({ data }) => {
       if (data.session) void navigate({ to: "/dashboard", replace: true });
     });
@@ -43,7 +49,7 @@ function AuthPage() {
       if (session) void navigate({ to: "/dashboard", replace: true });
     });
     return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+  }, [inactive, navigate]);
 
 
   const validate = () => {
@@ -121,7 +127,7 @@ function AuthPage() {
             ธส
           </div>
           <h1 className="text-2xl font-bold">ธารทรัพย์</h1>
-          <p className="text-sm opacity-80">ระบบสินเชื่อจำนำเล่มทะเบียนแลกเงินสด</p>
+          <p className="inline-flex items-center justify-center gap-1 text-sm opacity-80">\n            ระบบสินเชื่อจำนำเล่มทะเบียนแลกเงินสด\n            <EnvironmentVersionInfo className="text-primary-foreground/90" />\n          </p>
         </div>
 
         <Card>

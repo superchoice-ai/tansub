@@ -35,6 +35,16 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ageFromBirthDate(value: unknown): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "-";
+  const [year, month, day] = value.split("-").map(Number);
+  const today = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(today);
+  const current = Object.fromEntries(parts.map(part => [part.type, Number(part.value)]));
+  const age = current.year - year - (current.month < month || (current.month === month && current.day < day) ? 1 : 0);
+  return age >= 0 && age <= 130 ? `${age} ปี` : "-";
+}
+
 function CustomerDetail() {
   const { customerId } = Route.useParams();
 
@@ -81,15 +91,23 @@ function CustomerDetail() {
             <CardTitle className="text-base">ข้อมูลส่วนตัว</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
+            <Field label="ชื่อ-นามสกุล" value={c.full_name} />
+            <Field label="ชื่อเล่น" value={(c["nick_name"] as string) || "-"} />
+            <Field label="วันเกิด" value={c["birth_date"] ? formatThaiDate(c["birth_date"] as string) : "-"} />
+            <Field label="อายุ" value={ageFromBirthDate(c["birth_date"])} />
+            <Field label="วันหมดอายุบัตรประชาชน" value={c["citizen_id_card_expire"] ? formatThaiDate(c["citizen_id_card_expire"] as string) : "-"} />
             <Field label="เลขบัตรประชาชน" value={thaiIdMask(c.national_id)} />
             <Field label="เบอร์โทรศัพท์" value={(c["phone"] as string) ?? "-"} />
             <Field label="อีเมล" value={(c["email"] as string) ?? "-"} />
+            <Field label="LINEID" value={(c["line_id"] as string) || "-"} />
+            <Field label="Document No." value={(c["document_no"] as string) || "-"} />
             <Field label="อาชีพ" value={(c["occupation"] as string) ?? "-"} />
             <Field
               label="รายได้ต่อเดือน"
-              value={c["monthly_income"] ? `฿${formatMoney(c["monthly_income"] as number)}` : "-"}
+              value={c["monthly_income"] != null ? `฿${formatMoney(c["monthly_income"] as number)}` : "-"}
             />
             <Field label="ที่อยู่" value={(c["address"] as string) ?? "-"} />
+            <Field label="หมายเหตุ" value={(c["note"] as string) || "-"} />
             <Field label="สาขา" value={((c["branches"] as { name: string } | null)?.name) ?? "-"} />
             <Field label="ผู้ติดต่อฉุกเฉิน" value={(c["emergency_name"] as string) ?? "-"} />
           </CardContent>

@@ -493,6 +493,8 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          citizen_id_card_expire: string | null
+          nick_name: string | null
           birth_date: string | null
           branch_id: string
           code: string
@@ -518,6 +520,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          citizen_id_card_expire?: string | null
+          nick_name?: string | null
           birth_date?: string | null
           branch_id: string
           code: string
@@ -543,6 +547,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          citizen_id_card_expire?: string | null
+          nick_name?: string | null
           birth_date?: string | null
           branch_id?: string
           code?: string

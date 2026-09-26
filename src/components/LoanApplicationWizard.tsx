@@ -20,14 +20,18 @@ import { FALLBACK_DEFAULTS, maxLoanByLtv, type LoanDefaults } from "@/lib/loan";
 
 const CONFIG_REFRESH_MS = 30 * 60 * 1000;
 
+const optionalDate = z.string().refine(v => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0,10) === v), "วันที่ไม่ถูกต้อง");
 const customerSchema = z.object({
+  nick_name: z.string().trim().max(100),
+  birth_date: optionalDate,
+  citizen_id_card_expire: optionalDate,
   full_name: z.string().trim().min(2, "กรุณากรอกชื่อ-นามสกุล").max(150),
   national_id: z.string().refine(isValidThaiId, "เลขบัตรประชาชนไม่ถูกต้อง"),
   phone: z.string().trim().regex(/^0\d{8,9}$/, "เบอร์โทรไม่ถูกต้อง"),
   email: z.string().trim().email("อีเมลไม่ถูกต้อง").max(255).or(z.literal("")),
   address: z.string().trim().max(500),
   occupation: z.string().trim().max(100),
-  monthly_income: z.string(),
+  monthly_income: z.string().refine(v => !v || (/^\d+(\.\d{1,2})?$/.test(v) && Number.isSafeInteger(Math.round(Number(v) * 100))), "รายได้ไม่ถูกต้อง"),
   note: z.string().trim().max(1000),
   line_id: z.string().trim().max(100),
   document_no: z.string().trim().max(100),
@@ -87,6 +91,9 @@ const EMPTY_CUSTOMER: CustomerForm = {
   note: "",
   line_id: "",
   document_no: "",
+  nick_name: "",
+  birth_date: "",
+  citizen_id_card_expire: "",
 };
 
 const makeEmptyApplication = (): ApplicationForm => ({
@@ -136,7 +143,7 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
     queryFn: async () => {
       let q = supabase
         .from("customers")
-        .select("id, code, full_name, national_id, phone, line_id, email, occupation, monthly_income, address, note, document_no")
+        .select("id, code, full_name, national_id, phone, line_id, email, occupation, monthly_income, address, note, document_no, nick_name, birth_date, citizen_id_card_expire")
         .eq("status", "active")
         .order("full_name");
       if (branchId) q = q.eq("branch_id", branchId);
@@ -268,8 +275,11 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
             email: v.email || null,
             address: v.address || null,
             occupation: v.occupation || null,
-            monthly_income: v.monthly_income ? Math.round(parseFloat(v.monthly_income) * 100) : null,
+            monthly_income: v.monthly_income ? Math.round(Number(v.monthly_income) * 100) : null,
             note: v.note || null,
+            nick_name: v.nick_name || null,
+            birth_date: v.birth_date || null,
+            citizen_id_card_expire: v.citizen_id_card_expire || null,
             created_by: profile.id,
             line_id: v.line_id || null,
             document_no: v.document_no || null,
@@ -413,6 +423,9 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="ชื่อ-นามสกุล *" value={displayCustomer?.full_name ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, full_name: v })} />
+                  <Field label="ชื่อเล่น" value={displayCustomer?.nick_name ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, nick_name: v })} />
+                  <Field label="วันเกิด" type="date" value={displayCustomer?.birth_date ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, birth_date: v })} />
+                  <Field label="วันหมดอายุบัตรประชาชน" type="date" value={displayCustomer?.citizen_id_card_expire ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, citizen_id_card_expire: v })} />
                   <Field label="เลขบัตรประชาชน *" value={displayCustomer?.national_id ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, national_id: v })} />
                   <Field label="เบอร์โทรศัพท์ *" value={displayCustomer?.phone ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, phone: v })} />
                   <Field label="LINEID" value={displayCustomer?.line_id ?? ""} readOnly={customerMode === "existing"} onChange={(v) => setCustomerForm({ ...customerForm, line_id: v })} />
@@ -477,6 +490,9 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
                 <div className="grid gap-4 lg:grid-cols-3">
                   <Review title="ลูกค้า" rows={[
                     ["ชื่อ-นามสกุล", customerMode === "existing" ? selectedCustomer?.full_name : customerForm.full_name],
+                    ["ชื่อเล่น", customerMode === "existing" ? selectedCustomer?.nick_name : customerForm.nick_name],
+                    ["วันเกิด", customerMode === "existing" ? selectedCustomer?.birth_date : customerForm.birth_date],
+                    ["วันหมดอายุบัตรประชาชน", customerMode === "existing" ? selectedCustomer?.citizen_id_card_expire : customerForm.citizen_id_card_expire],
                     ["เลขบัตรประชาชน", customerMode === "existing" ? selectedCustomer?.national_id : customerForm.national_id],
                     ["เบอร์โทร", customerMode === "existing" ? selectedCustomer?.phone : customerForm.phone],
                     ["LINEID", customerMode === "existing" ? selectedCustomer?.line_id : customerForm.line_id],

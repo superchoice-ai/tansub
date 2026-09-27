@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, isValidThaiId, toSatang } from "@/lib/format";
 import { assertCustomerIdentityAvailable, customerDuplicateSaveMessage, normalizeIdentityDigits } from "@/lib/customerIdentity";
-import { VEHICLE_TYPE_LABEL } from "@/lib/labels";
+import { LOAN_TYPE_LABEL, isVehicleLoan, normalizeLoanSubtype } from "@/lib/loanTypes";
 import { FALLBACK_DEFAULTS, maxLoanByLtv, type LoanDefaults } from "@/lib/loan";
 
 const CONFIG_REFRESH_MS = 30 * 60 * 1000;
@@ -64,6 +64,7 @@ type CustomerForm = z.infer<typeof customerSchema>;
 type ApplicationForm = {
   customer_id: string;
   vehicle_type: string;
+  subtype_code: string;
   brand: string;
   model: string;
   year: string;
@@ -99,6 +100,7 @@ const EMPTY_CUSTOMER: CustomerForm = {
 const makeEmptyApplication = (): ApplicationForm => ({
   customer_id: "",
   vehicle_type: "car",
+  subtype_code: "",
   brand: "",
   model: "",
   year: "",
@@ -115,7 +117,7 @@ const makeEmptyApplication = (): ApplicationForm => ({
   document_no: "",
 });
 
-const STEPS = ["ลูกค้า", "รถและผู้ค้ำ", "เงื่อนไขสินเชื่อ", "ตรวจสอบ"] as const;
+const STEPS = ["ลูกค้า", "ประเภทสินเชื่อ", "เงื่อนไขสินเชื่อ", "ตรวจสอบ"] as const;
 
 export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { profile } = useAuth();
@@ -176,10 +178,10 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
   }));
 
   const ltvCap = useMemo(
-    () => maxLoanByLtv(
+    () => isVehicleLoan(form.vehicle_type) ? maxLoanByLtv(
       toSatang(form.appraised_value || "0"),
       form.vehicle_type === "motorcycle" ? loanDefaults.ltv_motorcycle : loanDefaults.ltv_car,
-    ),
+    ) : 0,
     [form.appraised_value, form.vehicle_type, loanDefaults.ltv_car, loanDefaults.ltv_motorcycle],
   );
 
@@ -227,13 +229,16 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
         if (!parsed.success) throw new Error(parsed.error.issues[0]!.message);
       }
     }
-    if (step === 2 && !form.plate_no.trim()) throw new Error("กรุณากรอกทะเบียนรถ");
+    if (step === 2) {
+      normalizeLoanSubtype(form.subtype_code);
+      if (isVehicleLoan(form.vehicle_type) && !form.plate_no.trim()) throw new Error("กรุณากรอกทะเบียนรถ");
+    }
     if (step === 3) {
       const requested = toSatang(form.requested_amount || "0");
       const term = Number(form.term_months);
       if (requested <= 0) throw new Error("กรุณากรอกวงเงินที่ขอ");
       if (!loanDefaults.terms.includes(term)) throw new Error("กรุณาเลือกจำนวนงวดที่ถูกต้อง");
-      if (ltvCap > 0 && requested > ltvCap) throw new Error(`วงเงินเกินเพดาน LTV (สูงสุด ฿${formatMoney(ltvCap)})`);
+      if (isVehicleLoan(form.vehicle_type) && ltvCap > 0 && requested > ltvCap) throw new Error(`วงเงินเกินเพดาน LTV (สูงสุด ฿${formatMoney(ltvCap)})`);
     }
   };
 
@@ -252,6 +257,13 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
       validateStep(1);
       validateStep(2);
       validateStep(3);
+
+      // Detect a missing migration before creating a customer or vehicle.
+      const subtypeCode = normalizeLoanSubtype(form.subtype_code);
+      const { data: code, error: cErr } = await supabase.rpc("next_loan_doc_no" as never, {
+        _branch: profile.branch_id, _doc_type: "APP", _user_code: subtypeCode,
+      } as never);
+      if (cErr) throw cErr;
 
       let customerId = form.customer_id;
       if (customerMode === "new") {
@@ -299,9 +311,11 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
       const currentLtv = form.vehicle_type === "motorcycle" ? latest.ltv_motorcycle : latest.ltv_car;
       const currentLtvCap = maxLoanByLtv(toSatang(form.appraised_value || "0"), currentLtv);
       if (!latest.terms.includes(term)) throw new Error(`จำนวนงวดไม่ตรงกับค่าล่าสุด กรุณาเลือกใหม่ (${latest.terms.join(", ")} เดือน)`);
-      if (currentLtvCap > 0 && requested > currentLtvCap) throw new Error(`วงเงินเกินเพดาน LTV ล่าสุด (สูงสุด ฿${formatMoney(currentLtvCap)})`);
+      if (isVehicleLoan(form.vehicle_type) && currentLtvCap > 0 && requested > currentLtvCap) throw new Error(`วงเงินเกินเพดาน LTV ล่าสุด (สูงสุด ฿${formatMoney(currentLtvCap)})`);
 
-      const { data: vehicle, error: vErr } = await supabase
+      let vehicleId: string | null = null;
+      if (isVehicleLoan(form.vehicle_type)) {
+        const { data: vehicle, error: vErr } = await supabase
         .from("vehicles")
         .insert({
           branch_id: profile.branch_id,
@@ -318,13 +332,10 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
         } as never)
         .select("id")
         .single();
-      if (vErr) throw vErr;
+        if (vErr) throw vErr;
 
-      const { data: code, error: cErr } = await supabase.rpc("next_doc_no", {
-        _branch: profile.branch_id,
-        _doc_type: "APP",
-      });
-      if (cErr) throw cErr;
+        vehicleId = vehicle.id;
+      }
 
       const { data: app, error } = await supabase
         .from("loan_applications")
@@ -332,7 +343,9 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
           branch_id: profile.branch_id,
           code: code as string,
           customer_id: customerId,
-          vehicle_id: vehicle.id,
+          vehicle_id: vehicleId,
+          loan_type: form.vehicle_type,
+          subtype_code: subtypeCode,
           requested_amount: requested,
           interest_rate: parseFloat(form.interest_rate),
           term_months: term,
@@ -447,10 +460,12 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
 
             {currentStep === 2 && (
               <section className="rounded-xl border p-5">
-                <h3 className="mb-4 text-xl font-semibold">ข้อมูลรถและผู้ค้ำประกัน</h3>
+                <h3 className="mb-4 text-xl font-semibold">ประเภทสินเชื่อและข้อมูลประกอบ</h3>
                 <div className="mb-5 rounded-lg border bg-muted/30 px-4 py-3">ลูกค้า: {customerMode === "existing" ? `${selectedCustomer?.code ?? ""} · ${selectedCustomer?.full_name ?? ""}` : customerForm.full_name}</div>
                 <div className="grid gap-5 md:grid-cols-3">
-                  <div className="space-y-1.5"><Label>ประเภทรถ</Label><Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(VEHICLE_TYPE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-1.5"><Label>ประเภทสินเชื่อ</Label><Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(LOAN_TYPE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-1.5"><Label>อักษรในเลขคำขอ * (A–Z, 1–4 ตัว)</Label><Input value={form.subtype_code} maxLength={4} onChange={(e) => setForm({ ...form, subtype_code: e.target.value.toUpperCase() })} placeholder="เช่น C หรือ AB" /><p className="text-xs text-muted-foreground">ระบบออก APP-[สาขา]-[อักษร]-[ลำดับ] ให้เอง และส่งอักษรเดียวกันไป CTR</p></div>
+                  {isVehicleLoan(form.vehicle_type) && <>
                   <Field label="ยี่ห้อ" value={form.brand} onChange={(v) => setForm({ ...form, brand: v })} />
                   <Field label="รุ่น" value={form.model} onChange={(v) => setForm({ ...form, model: v })} />
                   <Field label="ปีจดทะเบียน" value={form.year} type="number" onChange={(v) => setForm({ ...form, year: v })} />
@@ -458,6 +473,7 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
                   <Field label="จังหวัดทะเบียน" value={form.plate_province} onChange={(v) => setForm({ ...form, plate_province: v })} />
                   <Field label="เลขตัวถัง" value={form.chassis_no} onChange={(v) => setForm({ ...form, chassis_no: v })} />
                   <Field label="วันที่ครบกำหนดต่อทะเบียน" value={form.registration_due_date} type="date" onChange={(v) => setForm({ ...form, registration_due_date: v })} />
+                  </>}
                   <Field label="ชื่อ-สกุลผู้ค้ำประกัน" value={form.guarantor_name} onChange={(v) => setForm({ ...form, guarantor_name: v })} />
                 </div>
               </section>
@@ -472,12 +488,12 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
                   </Button>
                 </div>
                 <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  <Field label="ราคาประเมินรถ (บาท)" value={form.appraised_value} type="number" onChange={(v) => setForm({ ...form, appraised_value: v })} />
+                  {isVehicleLoan(form.vehicle_type) && <Field label="ราคาประเมินรถ (บาท)" value={form.appraised_value} type="number" onChange={(v) => setForm({ ...form, appraised_value: v })} />}
                   <Field label="วงเงินที่ขอ (บาท) *" value={form.requested_amount} type="number" onChange={(v) => setForm({ ...form, requested_amount: v })} />
                   <div className="space-y-1.5"><Label>จำนวนงวด *</Label><Select value={form.term_months} onValueChange={(v) => setForm({ ...form, term_months: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{loanDefaults.terms.map((term) => <SelectItem key={term} value={String(term)}>{term} เดือน</SelectItem>)}</SelectContent></Select></div>
                   <Field label="อัตราดอกเบี้ย (%)" value={form.interest_rate} type="number" onChange={(v) => setForm({ ...form, interest_rate: v })} />
                   <Field label="Document No." value={form.document_no} onChange={(v) => setForm({ ...form, document_no: v })} />
-                  <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm"><div className="text-muted-foreground">เพดาน LTV</div><div className="mt-1 font-semibold">฿{formatMoney(ltvCap)}</div></div>
+                  {isVehicleLoan(form.vehicle_type) && <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm"><div className="text-muted-foreground">เพดาน LTV</div><div className="mt-1 font-semibold">฿{formatMoney(ltvCap)}</div></div>}
                   <div className="space-y-1.5 md:col-span-2 lg:col-span-3"><Label>วัตถุประสงค์</Label><Textarea value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} rows={3} /></div>
                 </div>
               </section>
@@ -497,14 +513,15 @@ export function LoanApplicationWizard({ open, onOpenChange }: { open: boolean; o
                     ["เบอร์โทร", customerMode === "existing" ? selectedCustomer?.phone : customerForm.phone],
                     ["LINEID", customerMode === "existing" ? selectedCustomer?.line_id : customerForm.line_id],
                   ]} />
-                  <Review title="รถและผู้ค้ำ" rows={[
-                    ["ประเภทรถ", VEHICLE_TYPE_LABEL[form.vehicle_type] ?? form.vehicle_type],
+                  <Review title="ประเภทสินเชื่อและข้อมูลประกอบ" rows={[
+                    ["ประเภทสินเชื่อ", LOAN_TYPE_LABEL[form.vehicle_type] ?? form.vehicle_type],
+                    ["อักษรในเลขคำขอ", form.subtype_code.toUpperCase()],
                     ["ยี่ห้อ / รุ่น", `${form.brand || "-"} ${form.model || ""}`],
-                    ["ทะเบียน", `${form.plate_no} ${form.plate_province}`],
+                    ["ทะเบียน", isVehicleLoan(form.vehicle_type) ? `${form.plate_no} ${form.plate_province}` : "-"],
                     ["ผู้ค้ำประกัน", form.guarantor_name || "-"],
                   ]} />
                   <Review title="เงื่อนไขสินเชื่อ" rows={[
-                    ["ราคาประเมิน", `฿${Number(form.appraised_value || 0).toLocaleString("th-TH")}`],
+                    ["ราคาประเมิน", isVehicleLoan(form.vehicle_type) ? `฿${Number(form.appraised_value || 0).toLocaleString("th-TH")}` : "-"],
                     ["วงเงินที่ขอ", `฿${Number(form.requested_amount || 0).toLocaleString("th-TH")}`],
                     ["จำนวนงวด", `${form.term_months} เดือน`],
                     ["อัตราดอกเบี้ย", `${form.interest_rate}%`],

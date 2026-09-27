@@ -59,7 +59,7 @@ function ContractsPage() {
     queryFn: async () => {
       let q = supabase
         .from("loan_applications")
-        .select("id, code, customer_id, vehicle_id, approved_amount, requested_amount, interest_rate, term_months, fee_amount, document_no, customers:customer_id(full_name,national_id,phone,line_id)")
+        .select("id, code, customer_id, vehicle_id, approved_amount, requested_amount, interest_rate, term_months, fee_amount, document_no, loan_type, subtype_code, customers:customer_id(full_name,national_id,phone,line_id)")
         .eq("status", "approved");
       if (branchId) q = q.eq("branch_id", branchId);
       const { data } = await q;
@@ -74,7 +74,9 @@ function ContractsPage() {
       if (!app) throw new Error("กรุณาเลือกคำขอที่อนุมัติแล้ว");
       const principal = app.approved_amount ?? app.requested_amount;
       const summary = buildSchedule({ principal, interestRate: Number(app.interest_rate), termMonths: app.term_months }, firstDue);
-      const { data: code, error: cErr } = await supabase.rpc("next_doc_no", { _branch: profile.branch_id, _doc_type: "CTR" });
+      const { data: code, error: cErr } = app.subtype_code
+        ? await supabase.rpc("next_loan_doc_no" as never, { _branch: profile.branch_id, _doc_type: "CTR", _user_code: app.subtype_code } as never)
+        : await supabase.rpc("next_doc_no", { _branch: profile.branch_id, _doc_type: "CTR" });
       if (cErr) throw cErr;
       const lastDue = summary.schedule[summary.schedule.length - 1]!.dueDate;
       const { data: contract, error } = await supabase
@@ -88,7 +90,7 @@ function ContractsPage() {
       const { error: dErr } = await supabase.from("disbursements").insert({ branch_id: profile.branch_id, contract_id: contract.id, paid_at: startDate, amount: principal - (app.fee_amount ?? 0), method: "transfer", paid_by: profile.id });
       if (dErr) throw dErr;
       await supabase.from("loan_applications").update({ status: "contracted" }).eq("id", app.id);
-      await supabase.from("vehicles").update({ book_status: "received" }).eq("id", app.vehicle_id!);
+      if (app.vehicle_id) await supabase.from("vehicles").update({ book_status: "received" }).eq("id", app.vehicle_id);
     },
     onSuccess: () => { toast.success("สร้างสัญญาและตารางผ่อนชำระเรียบร้อย"); setOpen(false); setAppId(""); void qc.invalidateQueries(); },
     onError: (e: Error) => toast.error(e.message),
@@ -121,13 +123,13 @@ function ContractsPage() {
       <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{Object.entries(CONTRACT_STATUS_LABEL).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
     </CardContent></Card>
 
-    <Card><CardContent className="p-0">{isLoading ? <div className="p-6">กำลังโหลด...</div> : filtered.length === 0 ? <div className="p-6"><EmptyState title="ไม่พบสัญญา" /></div> : <><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>เลขที่สัญญา</TableHead><TableHead>ลูกค้า</TableHead><TableHead>ทะเบียนรถ</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ค่างวด</TableHead><TableHead className="text-right">คงค้าง</TableHead>{isHQ && <TableHead>สาขา</TableHead>}<TableHead>เริ่มสัญญา</TableHead><TableHead>สถานะ</TableHead><TableHead className="text-right">จัดการ</TableHead></TableRow></TableHeader><TableBody>{pagination.rows.map((c: any) => <TableRow key={c.id}><TableCell className="font-medium"><Link to="/contracts/$contractId" params={{ contractId: c.id }} className="text-primary hover:underline">{c.code}</Link></TableCell><TableCell>{c.customers?.full_name ?? "-"}</TableCell><TableCell>{c.vehicles?.plate_no ?? "-"}</TableCell><TableCell className="text-right">฿{formatMoney(c.principal)}</TableCell><TableCell className="text-right">฿{formatMoney(c.installment_amount)}</TableCell><TableCell className="text-right font-medium">฿{formatMoney(c.outstanding)}</TableCell>{isHQ && <TableCell>{c.branches?.name ?? "-"}</TableCell>}<TableCell>{formatThaiDate(c.start_date)}</TableCell><TableCell><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} /></TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Button size="sm" variant="outline" onClick={() => setPreviewContract(c)}><Eye className="size-3.5" /> Preview</Button><Button size="icon" variant="ghost" title="พิมพ์สัญญารายบุคคล" onClick={() => openPrint(c.id)}><Printer className="size-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div><StandardPagination page={pagination.page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={setPageSize} /></>}</CardContent></Card>
+    <Card><CardContent className="p-0">{isLoading ? <div className="p-6">กำลังโหลด...</div> : filtered.length === 0 ? <div className="p-6"><EmptyState title="ไม่พบสัญญา" /></div> : <><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>เลขที่สัญญา</TableHead><TableHead>ลูกค้า</TableHead><TableHead>ทะเบียนรถ</TableHead><TableHead className="text-right">เงินต้น</TableHead><TableHead className="text-right">ค่างวด</TableHead><TableHead className="text-right">คงค้าง</TableHead>{isHQ && <TableHead>สาขา</TableHead>}<TableHead>เริ่มสัญญา</TableHead><TableHead>สถานะ</TableHead><TableHead className="text-right">จัดการ</TableHead></TableRow></TableHeader><TableBody>{pagination.rows.map((c: any) => <TableRow key={c.id}><TableCell className="font-medium"><Link to="/contracts/$contractId" params={{ contractId: c.id }} className="text-primary hover:underline">{c.code}</Link></TableCell><TableCell>{c.customers?.full_name ?? "-"}</TableCell><TableCell>{c.vehicles?.plate_no ?? "-"}</TableCell><TableCell className="text-right">฿{formatMoney(c.principal)}</TableCell><TableCell className="text-right">฿{formatMoney(c.installment_amount)}</TableCell><TableCell className="text-right font-medium">฿{formatMoney(c.outstanding)}</TableCell>{isHQ && <TableCell>{c.branches?.name ?? "-"}</TableCell>}<TableCell>{formatThaiDate(c.start_date)}</TableCell><TableCell><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} /></TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Button size="sm" variant="outline" onClick={() => setPreviewContract(c)}><Eye className="size-3.5" /> Preview</Button><Button size="icon" variant="ghost" title={c.vehicles ? "พิมพ์สัญญารายบุคคล" : "ยังไม่มีแบบสัญญาสำหรับสินเชื่อประเภทนี้"} disabled={!c.vehicles} onClick={() => openPrint(c.id)}><Printer className="size-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div><StandardPagination page={pagination.page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={setPageSize} /></>}</CardContent></Card>
 
     <Dialog open={!!previewContract} onOpenChange={(v) => !v && setPreviewContract(null)}>
       <DialogContent className="max-h-[96vh] overflow-hidden sm:max-w-[min(96vw,1100px)]">
         <DialogHeader className="no-print"><DialogTitle>Preview สัญญากู้ยืมเงิน {previewContract?.code}</DialogTitle><DialogDescription>สัญญา A4 ภาษาไทย ดึงข้อมูลรายบุคคลและข้อมูลบริษัทล่าสุดจากฐานข้อมูลโดยตรง</DialogDescription></DialogHeader>
         <div className="max-h-[78vh] overflow-auto rounded-md bg-muted p-4">{previewContract && <ContractPromisPrint contract={previewContract} company={companySetting.value} />}</div>
-        <DialogFooter className="no-print"><Button variant="outline" onClick={() => setPreviewContract(null)}>ปิด</Button><Button onClick={() => previewContract && openPrint(previewContract.id)}><Printer className="size-4" /> พิมพ์ / Save PDF</Button></DialogFooter>
+        <DialogFooter className="no-print"><Button variant="outline" onClick={() => setPreviewContract(null)}>ปิด</Button><Button onClick={() => previewContract && openPrint(previewContract.id)} disabled={!previewContract?.vehicles}><Printer className="size-4" /> พิมพ์ / Save PDF</Button></DialogFooter>
       </DialogContent>
     </Dialog>
 

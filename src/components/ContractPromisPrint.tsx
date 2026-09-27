@@ -94,6 +94,7 @@ function Field({ children, min = "4rem" }: { children: React.ReactNode; min?: st
 }
 
 export function ContractPromisPrint({ contract, company }: { contract: ContractPrintData; company?: CompanyConfig | null }) {
+  if (!contract.vehicles) return <article className="contract-print-sheet"><p>ยังไม่มีแบบสัญญาสำหรับสินเชื่อที่ไม่ใช้รถเป็นหลักประกัน กรุณาใช้เอกสารที่ผ่านการอนุมัติสำหรับประเภทสินเชื่อนี้</p></article>;
   const customer = contract.customers ?? {};
   const vehicle = contract.vehicles ?? {};
   const companyName = company?.name?.trim() || FALLBACK_COMPANY.name;

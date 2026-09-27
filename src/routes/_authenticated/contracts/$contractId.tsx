@@ -120,7 +120,7 @@ function ContractDetail() {
       <PageHeader
         title={`สัญญาเลขที่ ${c.code}`}
         description={`${c.customers?.full_name ?? "-"} · ทะเบียน ${c.vehicles?.plate_no ?? "-"} · ${c.branches?.name ?? ""}`}
-        actions={<><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} />{data.pendingCancel && <StatusPill status="pending" label="รออนุมัติยกเลิกสัญญา" />}{canRequestCancel && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Trash2 className="size-4" /> ขอยกเลิกสัญญา</Button>}<Button variant="outline" onClick={() => void refreshConfig()} disabled={companySetting.isFetching}><RefreshCw className={companySetting.isFetching ? "size-4 animate-spin" : "size-4"} /> โหลดค่าล่าสุด</Button><Button variant="outline" onClick={() => setPreviewOpen(true)}><Eye className="size-4" /> Preview สัญญา</Button><Button onClick={printContract}><Printer className="size-4" /> พิมพ์</Button></>}
+        actions={<><StatusPill status={c.status} label={CONTRACT_STATUS_LABEL[c.status] ?? c.status} />{data.pendingCancel && <StatusPill status="pending" label="รออนุมัติยกเลิกสัญญา" />}{canRequestCancel && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Trash2 className="size-4" /> ขอยกเลิกสัญญา</Button>}<Button variant="outline" onClick={() => void refreshConfig()} disabled={companySetting.isFetching}><RefreshCw className={companySetting.isFetching ? "size-4 animate-spin" : "size-4"} /> โหลดค่าล่าสุด</Button><Button variant="outline" onClick={() => setPreviewOpen(true)}><Eye className="size-4" /> Preview สัญญา</Button><Button onClick={printContract} disabled={!c.vehicles} title={!c.vehicles ? "ยังไม่มีแบบสัญญาสำหรับสินเชื่อประเภทนี้" : undefined}><Printer className="size-4" /> พิมพ์</Button></>}
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -154,7 +154,7 @@ function ContractDetail() {
         <DialogContent className="max-h-[96vh] overflow-hidden sm:max-w-[min(96vw,1100px)]">
           <DialogHeader className="no-print"><DialogTitle>Preview สัญญากู้ยืมเงิน {c.code}</DialogTitle><DialogDescription>ข้อมูลถูกจัดลงแบบสัญญา A4 ภาษาไทยจากฐานข้อมูลของสัญญาและ company master ล่าสุด</DialogDescription></DialogHeader>
           <div className="max-h-[78vh] overflow-auto rounded-md bg-muted p-4"><ContractPromisPrint contract={c} company={companySetting.value} /></div>
-          <DialogFooter className="no-print"><Button variant="outline" onClick={() => setPreviewOpen(false)}>ปิด</Button><Button onClick={printContract}><Printer className="size-4" /> พิมพ์ / Save PDF</Button></DialogFooter>
+          <DialogFooter className="no-print"><Button variant="outline" onClick={() => setPreviewOpen(false)}>ปิด</Button><Button onClick={printContract} disabled={!c.vehicles}><Printer className="size-4" /> พิมพ์ / Save PDF</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

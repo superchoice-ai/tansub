@@ -109,6 +109,26 @@ $function$;
 REVOKE ALL ON FUNCTION public.next_loan_doc_no(uuid, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.next_loan_doc_no(uuid, text, text) TO authenticated;
 
+DO $verify$
+BEGIN
+  IF to_regprocedure('public.next_loan_doc_no(uuid,text,text)') IS NULL
+     OR NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'loan_applications'
+         AND column_name = 'loan_type'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'loan_applications'
+         AND column_name = 'subtype_code'
+     )
+     OR NOT has_function_privilege('authenticated',
+          'public.next_loan_doc_no(uuid,text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Loan migration verification failed; transaction will roll back';
+  END IF;
+END
+$verify$;
+
 COMMIT;
 
 -- Read-only checks after COMMIT:

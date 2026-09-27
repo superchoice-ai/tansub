@@ -51,6 +51,19 @@
   vertical-align: baseline;
 }
 
+.contract-clauses .contract-clause-seven > span {
+  display: block;
+  white-space: nowrap;
+}
+.contract-clauses .contract-clause-seven > span:not(:first-child) {
+  margin-left: 11mm;
+  text-indent: 0;
+}
+.contract-clauses .contract-clause-seven .contract-dotted-line {
+  height: 1.4em;
+  border-bottom: 0.3mm dotted #555;
+}
+
 .contract-summary {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

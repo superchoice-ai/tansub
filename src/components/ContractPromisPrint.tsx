@@ -1,4 +1,5 @@
 import { formatMoney, formatThaiDate } from "@/lib/format";
+import { LOAN_TYPE_LABEL, isVehicleLoan } from "@/lib/loanTypes";
 import "./ContractPromisPrint.css";
 
 export type CompanyConfig = {
@@ -40,6 +41,7 @@ type ContractPrintData = {
     name?: string | null;
     address?: string | null;
   } | null;
+  loan_applications?: { loan_type?: string | null } | null;
 };
 
 export const FALLBACK_COMPANY: Required<Pick<CompanyConfig, "name" | "address">> = {
@@ -94,9 +96,15 @@ function Field({ children, min = "4rem" }: { children: React.ReactNode; min?: st
 }
 
 export function ContractPromisPrint({ contract, company }: { contract: ContractPrintData; company?: CompanyConfig | null }) {
-  if (!contract.vehicles) return <article className="contract-print-sheet"><p>ยังไม่มีแบบสัญญาสำหรับสินเชื่อที่ไม่ใช้รถเป็นหลักประกัน กรุณาใช้เอกสารที่ผ่านการอนุมัติสำหรับประเภทสินเชื่อนี้</p></article>;
   const customer = contract.customers ?? {};
   const vehicle = contract.vehicles ?? {};
+  const loanType = contract.loan_applications?.loan_type ?? (contract.vehicles ? "car" : "other");
+  const vehicleLoan = isVehicleLoan(loanType);
+  const securityText: Record<string, string> = {
+    personal: "คู่สัญญาจะระบุหลักประกัน (ถ้ามี) เป็นหนังสือ",
+    car_insurance: "กรมธรรม์มิใช่หลักประกัน เว้นแต่คู่สัญญาตกลงเป็นหนังสือ",
+    gold: "หากใช้ทองคำเป็นหลักประกัน ให้ระบุและรับมอบเป็นหนังสือ",
+  };
   const companyName = company?.name?.trim() || FALLBACK_COMPANY.name;
   const companyAddress = company?.address?.trim() || FALLBACK_COMPANY.address;
   const address = [customer.address, customer.district, customer.province, customer.postcode].filter(Boolean).join(" ") || "—";
@@ -125,15 +133,16 @@ export function ContractPromisPrint({ contract, company }: { contract: ContractP
         <p><b>ข้อ 4.</b> ผู้กู้ตกลงชำระหนี้ตามสัญญานี้ให้ครบถ้วนทั้งเงินต้นและดอกเบี้ย ภายในวันที่ <Field min="7rem">{formatThaiDate(contract.end_date, "long")}</Field> เว้นแต่จะมีการชำระเสร็จก่อนกำหนดหรือมีข้อตกลงเป็นหนังสือเป็นอย่างอื่น</p>
         <p><b>ข้อ 5.</b> หากผู้กู้ผิดนัดชำระหนี้ตามกำหนด ผู้ให้กู้มีสิทธิเรียกให้ชำระเงินต้น ดอกเบี้ย และหนี้ที่ถึงกำหนดตามสัญญาได้ตามสิทธิและภายใต้อัตราที่กฎหมายกำหนด รวมถึงสิทธิเรียกค่าเสียหายอันเกิดจากการผิดนัดตามกฎหมาย</p>
         <p><b>ข้อ 6.</b> หากผู้กู้ผิดนัดหรือผิดข้อตกลงข้อใดข้อหนึ่ง ผู้กู้ยอมรับผิดชดใช้ค่าเสียหายและค่าใช้จ่ายที่จำเป็นและเกิดขึ้นจริงในการติดตามทวงถาม ตลอดจนค่าธรรมเนียม ค่าทนายความ และค่าใช้จ่ายในการดำเนินคดีเท่าที่กฎหมายอนุญาต</p>
-        <p><b>ข้อ 7.</b> เพื่อเป็นหลักประกันการกู้ยืมเงิน ผู้กู้ตกลงมอบคู่มือจดทะเบียนรถ เลขทะเบียน <Field min="6rem">{vehicle.plate_no}</Field> จังหวัด <Field min="5rem">{vehicle.plate_province}</Field> รถ <Field min="8rem">{carText}</Field> เลขตัวถัง <Field min="7rem">{vehicle.chassis_no}</Field> พร้อมเอกสารที่เกี่ยวข้องไว้แก่ผู้ให้กู้ตามที่คู่สัญญาตกลง โดยค่าธรรมเนียมและภาษีให้เป็นไปตามกฎหมายและข้อตกลงที่ชอบด้วยกฎหมาย</p>
-        <p><b>ข้อ 8.</b> หากผู้กู้ผิดนัดตามสัญญานี้ ผู้กู้ตกลงส่งมอบรถที่เป็นหลักประกันให้แก่ผู้ให้กู้ตามขั้นตอนและวิธีการที่กฎหมายอนุญาต เพื่อดำเนินการตามสิทธิของผู้ให้กู้ โดยการดำเนินการใด ๆ ต้องเป็นไปตามกฎหมายและไม่ตัดสิทธิของผู้กู้ตามกฎหมาย</p>
-        <p><b>ข้อ 9.</b> ผู้กู้ตกลงไม่นำรถหรือเอกสารหลักประกันตามสัญญานี้ไปจำหน่าย จำนำ โอน หรือก่อภาระผูกพันแก่บุคคลอื่นในลักษณะที่กระทบสิทธิของผู้ให้กู้ เว้นแต่ได้รับความยินยอมเป็นหนังสือจากผู้ให้กู้ ทั้งนี้การใช้สิทธิของคู่สัญญาให้เป็นไปตามกฎหมาย</p>
+        {vehicleLoan ? <p><b>ข้อ 7.</b> เพื่อเป็นหลักประกันการกู้ยืมเงิน ผู้กู้ตกลงมอบคู่มือจดทะเบียนรถ เลขทะเบียน <Field min="6rem">{vehicle.plate_no}</Field> จังหวัด <Field min="5rem">{vehicle.plate_province}</Field> รถ <Field min="8rem">{carText}</Field> เลขตัวถัง <Field min="7rem">{vehicle.chassis_no}</Field> พร้อมเอกสารที่เกี่ยวข้องไว้แก่ผู้ให้กู้ตามที่คู่สัญญาตกลง โดยค่าธรรมเนียมและภาษีให้เป็นไปตามกฎหมายและข้อตกลงที่ชอบด้วยกฎหมาย</p> :
+          <p className="contract-clause-seven"><span><b>ข้อ 7.</b> เพื่อเป็นหลักประกันการกู้ยืมเงิน {securityText[loanType] ?? ""}</span><span className="contract-dotted-line" aria-label="รายละเอียดหลักประกันสำหรับกรอกด้วยมือ" /><span>โดยค่าธรรมเนียมและภาษีให้เป็นไปตามกฎหมายและข้อตกลงที่ชอบด้วยกฎหมาย</span></p>}
+        {vehicleLoan ? <p><b>ข้อ 8.</b> หากผู้กู้ผิดนัดตามสัญญานี้ ผู้กู้ตกลงส่งมอบรถที่เป็นหลักประกันให้แก่ผู้ให้กู้ตามขั้นตอนและวิธีการที่กฎหมายอนุญาต เพื่อดำเนินการตามสิทธิของผู้ให้กู้ โดยการดำเนินการใด ๆ ต้องเป็นไปตามกฎหมายและไม่ตัดสิทธิของผู้กู้ตามกฎหมาย</p> : <p><b>ข้อ 8.</b> หากผู้กู้ผิดนัดตามสัญญานี้ ผู้ให้กู้มีสิทธิเรียกให้ชำระหนี้และใช้สิทธิตามกฎหมายและข้อตกลงที่ชอบด้วยกฎหมาย โดยไม่ตัดสิทธิของผู้กู้ตามกฎหมาย</p>}
+        {vehicleLoan ? <p><b>ข้อ 9.</b> ผู้กู้ตกลงไม่นำรถหรือเอกสารหลักประกันตามสัญญานี้ไปจำหน่าย จำนำ โอน หรือก่อภาระผูกพันแก่บุคคลอื่นในลักษณะที่กระทบสิทธิของผู้ให้กู้ เว้นแต่ได้รับความยินยอมเป็นหนังสือจากผู้ให้กู้ ทั้งนี้การใช้สิทธิของคู่สัญญาให้เป็นไปตามกฎหมาย</p> : <p><b>ข้อ 9.</b> ผู้กู้ตกลงให้ข้อมูลและเอกสารที่เกี่ยวข้องกับเงินกู้ตามความจริง และแจ้งการเปลี่ยนแปลงข้อมูลสำคัญที่มีผลต่อการปฏิบัติตามสัญญาแก่ผู้ให้กู้เป็นหนังสือ ทั้งนี้สิทธิของคู่สัญญาให้เป็นไปตามกฎหมาย</p>}
         <p>เอกสารหรือการติดต่อเกี่ยวกับสัญญานี้ให้ส่งตามที่อยู่ที่ระบุไว้ในสัญญา หรือที่อยู่ล่าสุดซึ่งคู่สัญญาได้แจ้งเป็นหนังสือ คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในสัญญานี้โดยตลอดแล้ว จึงลงลายมือชื่อไว้เป็นหลักฐาน</p>
       </section>
 
       <section className="contract-summary">
         <div><span>เลขที่สัญญา</span><b>{contract.code}</b></div>
-        <div><span>ทะเบียนรถ</span><b>{vehicle.plate_no ?? "—"}</b></div>
+        <div><span>{vehicleLoan ? "ทะเบียนรถ" : "ประเภทสินเชื่อ"}</span><b>{vehicleLoan ? vehicle.plate_no ?? "—" : LOAN_TYPE_LABEL[loanType] ?? LOAN_TYPE_LABEL["other"]}</b></div>
         <div><span>เงินต้น</span><b>฿{formatMoney(contract.principal)}</b></div>
         <div><span>ค่างวด</span><b>฿{formatMoney(contract.installment_amount)}</b></div>
       </section>

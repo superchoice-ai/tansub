@@ -14,7 +14,7 @@ function ContractPrintPage() {
       const [contractResult, companyResult] = await Promise.all([
         supabase
           .from("contracts")
-          .select("*, customers:customer_id(id,code,full_name,national_id,phone,address,district,province,postcode,birth_date), vehicles:vehicle_id(plate_no,plate_province,brand,model,vehicle_type,chassis_no), branches:branch_id(name,address)")
+          .select("*, customers:customer_id(id,code,full_name,national_id,phone,address,district,province,postcode,birth_date), vehicles:vehicle_id(plate_no,plate_province,brand,model,vehicle_type,chassis_no), branches:branch_id(name,address), loan_applications:application_id(loan_type)")
           .eq("id", contractId)
           .single(),
         supabase.from("system_settings").select("value,updated_at").eq("key", "company").maybeSingle(),
@@ -31,7 +31,7 @@ function ContractPrintPage() {
   });
 
   useEffect(() => {
-    if (!data?.contract?.vehicles) return;
+    if (!data?.contract) return;
     document.documentElement.classList.add("contract-print-document");
     document.body.classList.add("contract-print-document");
     const timer = window.setTimeout(() => window.print(), 300);

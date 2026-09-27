@@ -31,7 +31,7 @@ function ContractPrintPage() {
   });
 
   useEffect(() => {
-    if (!data?.contract) return;
+    if (!data?.contract?.vehicles) return;
     document.documentElement.classList.add("contract-print-document");
     document.body.classList.add("contract-print-document");
     const timer = window.setTimeout(() => window.print(), 300);

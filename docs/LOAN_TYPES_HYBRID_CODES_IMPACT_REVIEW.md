@@ -14,19 +14,19 @@ Scope: branch code and a migration file only; no Cloud SQL execution, publishing
 
 ## Dependency and impact trace
 
-Wizard and /applications create APP; /contracts creates CTR and installments/disbursement; both route families use the same new APP fields and scoped RPC. The existing vehicle collateral print template cannot represent a nonvehicle loan, so its print button is disabled for contracts with no vehicle; no new contract language is invented. Other views use nullable vehicle joins. Existing RLS is retained. New function checks authorized branch, document type, and letter format and is callable by authenticated users only. The branch's migration does not update existing rows.
+Wizard and /applications create APP; /contracts creates CTR and installments/disbursement; both route families use the same new APP fields and scoped RPC. The shared contract print layout now selects five forms: one unchanged vehicle form for car/motorcycle, plus personal, car insurance, gold and other. Clause 7 has product-specific conditional wording or blank dotted space; nonvehicle clauses 8–9 no longer refer to a car. Existing vehicle text remains unchanged. Other views use nullable vehicle joins. Existing RLS is retained. New function checks authorized branch, document type, and letter format and is callable by authenticated users only. The branch's migration does not update existing rows.
 
 The migration must be applied in the confirmed Tansub Lovable Cloud DB **before** using the branch UI. Its BEGIN/COMMIT transaction is all-or-nothing on SQL error. Before applying, inspect the actual DB schema and current number generator; this repository is not a proof of current Cloud schema. Deployment/merge remains outside this change.
 
 ## Focused validation
 
 - Static: lowercase to uppercase, 1–4 valid letters, reject blank/number/non-Latin/overlong; car/motorcycle classification retained.
-- After migration, use newly created test data only: create nonvehicle APP via each entry screen without plate or appraisal; verify letter/branch sequence; approve APP; create CTR and verify letter inheritance and no book-received update; verify the car-only print template is unavailable.
+- After migration, use newly created test data only: create nonvehicle APP via each entry screen without plate or appraisal; verify letter/branch sequence; approve APP; create CTR and verify letter inheritance and no book-received update; verify each nonvehicle contract preview and print path and confirm its clause 7 and generic clauses 8–9; preserve the vehicle text.
 - Verify branch isolation and invalid RPC document type/letter rejection. Check old car rules by source review; if changed shared code can affect them, perform a narrowly scoped check of plate and LTV enforcement.
 - Do not delete test data without explicit owner approval; any later cleanup must be child → root in one transaction.
 
 ## Gate and rollback
 
-Local `npm ci` fails because the existing lockfile disagrees with package versions. A temporary, uncommitted `npm install --package-lock=false` allowed `npx tsc --noEmit` and `npm run build` to run. Full typecheck fails on repository-wide existing errors; Build stops at missing `index.html` in the GitHub tree. No full passing quality gate is claimed. Do not merge into main or publish while these are unresolved without a new explicit owner decision.
+Local `npm ci` fails because the existing lockfile disagrees with package versions. A temporary, uncommitted `npm install --package-lock=false` allowed `npx tsc --noEmit` and `npm run build` to run. Full typecheck fails on repository-wide existing errors; Build stops at missing `index.html` in the GitHub tree. No full passing quality gate is claimed. The owner explicitly accepted the Typecheck/Build exception for the branch integration on 2026-09-28. A local build and build:dev of the contract-print update completed, while full typecheck still reported existing repository errors; the Preview of CTR-HQ-M-0025, CTR-HQ-AB-0026, CTR-HQ-V-0027 and CTR-HQ-XYZZ-0028 rendered the new forms. Full lint also fails on repository-wide formatting errors and is a separate gate; do not call it passing.
 
 If SQL execution fails, run ROLLBACK in the same session and verify the two columns/function were not persisted. If applied successfully, disable new UI consumers first; leave populated application fields and document counters intact for audit, and plan a reviewed compensating migration rather than dropping business history.

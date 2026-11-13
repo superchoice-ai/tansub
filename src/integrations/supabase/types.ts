@@ -493,22 +493,24 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
-          citizen_id_card_expire: string | null
-          nick_name: string | null
           birth_date: string | null
           branch_id: string
+          citizen_id_card_expire: string | null
           code: string
           created_at: string
           created_by: string | null
           district: string | null
+          document_no: string | null
           email: string | null
           emergency_name: string | null
           emergency_phone: string | null
           emergency_relation: string | null
           full_name: string
           id: string
+          line_id: string | null
           monthly_income: number | null
           national_id: string | null
+          nick_name: string | null
           note: string | null
           occupation: string | null
           phone: string | null
@@ -520,22 +522,24 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          citizen_id_card_expire?: string | null
-          nick_name?: string | null
           birth_date?: string | null
           branch_id: string
+          citizen_id_card_expire?: string | null
           code: string
           created_at?: string
           created_by?: string | null
           district?: string | null
+          document_no?: string | null
           email?: string | null
           emergency_name?: string | null
           emergency_phone?: string | null
           emergency_relation?: string | null
           full_name: string
           id?: string
+          line_id?: string | null
           monthly_income?: number | null
           national_id?: string | null
+          nick_name?: string | null
           note?: string | null
           occupation?: string | null
           phone?: string | null
@@ -547,22 +551,24 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          citizen_id_card_expire?: string | null
-          nick_name?: string | null
           birth_date?: string | null
           branch_id?: string
+          citizen_id_card_expire?: string | null
           code?: string
           created_at?: string
           created_by?: string | null
           district?: string | null
+          document_no?: string | null
           email?: string | null
           emergency_name?: string | null
           emergency_phone?: string | null
           emergency_relation?: string | null
           full_name?: string
           id?: string
+          line_id?: string | null
           monthly_income?: number | null
           national_id?: string | null
+          nick_name?: string | null
           note?: string | null
           occupation?: string | null
           phone?: string | null
@@ -1064,14 +1070,17 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string
+          document_no: string | null
           fee_amount: number
           id: string
           interest_rate: number
+          loan_type: string | null
           note: string | null
           purpose: string | null
           reject_reason: string | null
           requested_amount: number
           status: Database["public"]["Enums"]["application_status"]
+          subtype_code: string | null
           term_months: number
           updated_at: string
           vehicle_id: string | null
@@ -1085,14 +1094,17 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id: string
+          document_no?: string | null
           fee_amount?: number
           id?: string
           interest_rate?: number
+          loan_type?: string | null
           note?: string | null
           purpose?: string | null
           reject_reason?: string | null
           requested_amount?: number
           status?: Database["public"]["Enums"]["application_status"]
+          subtype_code?: string | null
           term_months?: number
           updated_at?: string
           vehicle_id?: string | null
@@ -1106,14 +1118,17 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string
+          document_no?: string | null
           fee_amount?: number
           id?: string
           interest_rate?: number
+          loan_type?: string | null
           note?: string | null
           purpose?: string | null
           reject_reason?: string | null
           requested_amount?: number
           status?: Database["public"]["Enums"]["application_status"]
+          subtype_code?: string | null
           term_months?: number
           updated_at?: string
           vehicle_id?: string | null
@@ -1138,6 +1153,67 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_guarantors: {
+        Row: {
+          application_id: string
+          branch_id: string
+          created_at: string
+          customer_id: string | null
+          full_name: string
+          id: string
+          line_id: string | null
+          national_id: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          branch_id: string
+          created_at?: string
+          customer_id?: string | null
+          full_name: string
+          id?: string
+          line_id?: string | null
+          national_id?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          branch_id?: string
+          created_at?: string
+          customer_id?: string | null
+          full_name?: string
+          id?: string
+          line_id?: string | null
+          national_id?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_guarantors_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "loan_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_guarantors_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_guarantors_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
@@ -1219,11 +1295,11 @@ export type Database = {
           receipt_no: string
           received_by: string | null
           reference: string | null
+          void_approval_id: string | null
+          void_reason: string | null
           voided: boolean
           voided_at: string | null
           voided_by: string | null
-          void_reason: string | null
-          void_approval_id: string | null
         }
         Insert: {
           allocation_snapshot?: Json
@@ -1242,11 +1318,11 @@ export type Database = {
           receipt_no: string
           received_by?: string | null
           reference?: string | null
+          void_approval_id?: string | null
+          void_reason?: string | null
           voided?: boolean
           voided_at?: string | null
           voided_by?: string | null
-          void_reason?: string | null
-          void_approval_id?: string | null
         }
         Update: {
           allocation_snapshot?: Json
@@ -1265,11 +1341,11 @@ export type Database = {
           receipt_no?: string
           received_by?: string | null
           reference?: string | null
+          void_approval_id?: string | null
+          void_reason?: string | null
           voided?: boolean
           voided_at?: string | null
           voided_by?: string | null
-          void_reason?: string | null
-          void_approval_id?: string | null
         }
         Relationships: [
           {
@@ -1472,6 +1548,7 @@ export type Database = {
           note: string | null
           plate_no: string | null
           plate_province: string | null
+          registration_due_date: string | null
           updated_at: string
           vehicle_type: string
           year: number | null
@@ -1492,6 +1569,7 @@ export type Database = {
           note?: string | null
           plate_no?: string | null
           plate_province?: string | null
+          registration_due_date?: string | null
           updated_at?: string
           vehicle_type?: string
           year?: number | null
@@ -1512,6 +1590,7 @@ export type Database = {
           note?: string | null
           plate_no?: string | null
           plate_province?: string | null
+          registration_due_date?: string | null
           updated_at?: string
           vehicle_type?: string
           year?: number | null
@@ -1539,7 +1618,52 @@ export type Database = {
     }
     Functions: {
       can_access_branch: { Args: { _branch: string }; Returns: boolean }
+      check_customer_identity_duplicate: {
+        Args: {
+          _exclude_customer_id?: string
+          _national_id: string
+          _phone: string
+        }
+        Returns: {
+          conflict_field: string
+          customer_code: string
+          customer_id: string
+          customer_name: string
+        }[]
+      }
       delete_integration_secret: { Args: { _key: string }; Returns: boolean }
+      execute_approval_request: {
+        Args: {
+          _approval_id: string
+          _approve: boolean
+          _decision_note?: string
+        }
+        Returns: Json
+      }
+      execute_approval_request_phase_a_contract_cancel: {
+        Args: {
+          _approval_id: string
+          _approve: boolean
+          _decision_note?: string
+        }
+        Returns: Json
+      }
+      global_customer_history_search: {
+        Args: { _q: string }
+        Returns: {
+          branch_code: string
+          branch_name: string
+          event_date: string
+          full_name: string
+          history_type: string
+          line_id: string
+          national_id: string
+          person_id: string
+          phone: string
+          reference_no: string
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1547,9 +1671,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_current_user_active: { Args: never; Returns: boolean }
       is_hq: { Args: { _user_id: string }; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
-      is_current_user_active: { Args: never; Returns: boolean }
       list_integration_secrets: {
         Args: never
         Returns: {
@@ -1566,6 +1690,12 @@ export type Database = {
         Args: { _branch: string; _doc_type: string }
         Returns: string
       }
+      next_loan_doc_no: {
+        Args: { _branch: string; _doc_type: string; _user_code: string }
+        Returns: string
+      }
+      perform_contract_cancel: { Args: { _approval_id: string }; Returns: Json }
+      perform_payment_void: { Args: { _approval_id: string }; Returns: Json }
       set_integration_secret: {
         Args: {
           _category: string
@@ -1632,12 +1762,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1661,11 +1791,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1686,11 +1816,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1711,11 +1841,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1728,11 +1858,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -875,3 +875,9 @@ At completion, report:
 A passing existing runtime must not be used to fabricate clean-install or build evidence. Conversely, a theoretical future risk must not be used to justify unnecessary broad changes today.
 <!-- ANTI-OVERENGINEERING DEVELOPMENT GATE — END -->
 
+
+<!-- FEATURE MAP SYNCHRONIZATION GATE — BEGIN -->
+# MANDATORY RULE — Feature Map Synchronization After Every Commit to main
+
+Whatever tool made the change (Lovable, GitHub, Cursor, or any other), after every commit merged into `main` that changes features, routes, flows, roles, data rules, or SOPs, the contributor MUST update `docs/TANSUB_FEATURE_MAP_VERIFICATION_GUIDE.md` (and `.cursor/skills/verify-tansub/SKILL.md` when the verification method changes) in the same or the immediately following commit, including the "Last synced with main" SHA/date. Why: the feature map is the user manual and AI verification source; stale maps cause wrong usage and wrong tests. A change is not done until the map is current.
+<!-- FEATURE MAP SYNCHRONIZATION GATE — END -->
